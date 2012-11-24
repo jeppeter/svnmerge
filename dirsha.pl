@@ -112,7 +112,7 @@ sub DirDiff($$@)
     my ($cont);
     my ($err,$rlines);
     my ($shadir);
-    my ($content,$totalcount,$curcount,$percent,@rsarray,$curpercent);
+    my ($content,$totalcount,$curcount,$percent,@rsarray,$curpercent,$lastcount);
 
     
 
@@ -141,6 +141,7 @@ sub DirDiff($$@)
 	$totalcount = $rsarray[1];
 	$curcount = 0;
 	$percent = 0.0;
+	$lastcount = $curcount;
 #	DebugString("TotalCount $totalcount");
     
     print "AS $fdir\n";
@@ -207,10 +208,10 @@ sub DirDiff($$@)
 
             $curpercent = $curcount / $totalcount;
 #            DebugString("Percent $curpercent $percent\n");
-            if ( ($curpercent - $percent) > 0.05 )
+            if ( ($curcount - $lastcount) > 100 )
             {
             	print STDERR "$curpercent\r";
-            	$percent = $curpercent;
+            	$lastcount = $curcount;
             }
         }
         elsif (defined($curfile) && defined($err))
