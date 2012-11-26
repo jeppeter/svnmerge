@@ -5,7 +5,7 @@ use Digest::SHA1;
 use Getopt::Std;
 use ShaDir;
 use IO::Handle;
-use vars qw ($opt_h $opt_f $opt_s);
+use vars qw ($opt_h $opt_f $opt_s $opt_v $opt_V);
 my (@filters);
 my (@rawfiles);
 
@@ -102,6 +102,9 @@ sub Usage($)
     }
 
     print $fp "dirsha [-f compfile] dir \@filters\n";
+    print $fp "-f compfile to compare the sha file\n";
+    print $fp "-v for verbose mode\n";
+    print $fp "-V for display version\n";
     exit($exitcode);
 }
 
@@ -112,7 +115,12 @@ sub DirDiff($$@)
     my ($cont);
     my ($err,$rlines);
     my ($shadir);
-    my ($content);
+    my ($content,$totalcount,$curcount,$percent,@rsarray,$curpercent,$lastcount);
+    my ($perlen,$perstr);
+    my ($_b,$clcon);
+
+    $perlen = 0;
+    $perstr = "";
 
 #DebugString("sortfiles @sortfiles\n");
     undef($curfile);
@@ -125,13 +133,30 @@ sub DirDiff($$@)
     $rlines = 0;
 # we pretend to be continued
     $cont = 1;
-    DebugString("");
+
+	while(<$rfd>)
+	{
+		$curline=$_;
+		if ($curline =~ m#^RS #o)
+		{
+			last;
+		}
+	}
+
+	@rsarray = split(/ /,$curline);
+	$totalcount = $rsarray[1];
+	$curcount = 0;
+	$percent = 0.0;
+	$lastcount = $curcount;
+#	DebugString("TotalCount $totalcount");
+    
     print "AS $fdir\n";
+    
     while(<$rfd>)
     {
         $curline = $_;
         chomp($curline);
-        DebugString("curline $curline");
+#        DebugString("curline $curline");
         $rlines ++;
 #DebugString("curline[$rlines] $curline\n");
         if ($curline =~ m#^F #o)
@@ -153,6 +178,7 @@ sub DirDiff($$@)
             $curfile = $curline;
             $curfile =~ s#^F ##;
 #DebugString("curfile $curfile\n");
+            $curcount ++;
         }
         elsif ($curline =~ m#^S #o)
         {
@@ -185,6 +211,23 @@ sub DirDiff($$@)
             while ($cont);
             undef($curfile);
             undef($curdigest);
+
+            $curpercent = $curcount / $totalcount;
+#            DebugString("Percent $curpercent $percent\n");
+            if ( ($curcount - $lastcount) > 100 &&  defined($opt_v))
+            {
+            	$clcon = "\r";
+            	for ($_b = 0 ; $_b < $perlen ; $_b ++)
+            	{
+            		$clcon .= " ";
+            	}
+            	$clcon .= "\r";
+            	print STDERR "$clcon";
+            	$perstr = "$curpercent";
+            	$perlen = length($perstr);
+            	print STDERR "$perstr";
+            	$lastcount = $curcount;
+            }
         }
         elsif (defined($curfile) && defined($err))
         {
@@ -219,6 +262,18 @@ sub DirDiff($$@)
 #DebugString("count $count\n");
     }
     while($cont);
+
+    if (defined($opt_v))
+    {
+       	$clcon = "\r";
+       	for ($_b = 0 ; $_b < $perlen ; $_b ++)
+       	{
+       		$clcon .= " ";
+       	}
+       	$clcon .= "\r";
+       	print STDERR "$clcon";
+    	print STDERR "100.00\n";
+    }
 
     print "AE $fdir\n";
 }
@@ -301,7 +356,7 @@ sub DirSha($$)
 
 
 
-getopts("hf:s:");
+getopts("hf:s:vV");
 
 my ($cmpdir)=shift @ARGV;
 my ($rdfile);
@@ -316,6 +371,12 @@ if (defined($opt_h))
     Usage(0);
 }
 
+if (defined($opt_V))
+{
+	print STDOUT "$0 version 0.0.1\n";
+	exit 0;
+}
+
 if (defined($opt_f))
 {
     $rdfile = $opt_f;
@@ -326,7 +387,7 @@ if (!defined($cmpdir))
     Usage(3);
 }
 
-DebugString("\n");
+#DebugString("\n");
 STDIN->autoflush(1);
 STDOUT->autoflush(1);
 
@@ -348,7 +409,6 @@ if ($opt_f)
 #DebugString("Open $opt_f\n");
         open($rdfd,"<$opt_f") || die "can not open $opt_f for compare\n";
     }
-	DebugString("");
     
     DirDiff($cmpdir,$rdfd,@g_sortfiles);
 
@@ -394,7 +454,7 @@ else
     $shadir->SetFiles(@g_sortfiles);
     $shadir->PrepareInit();
 
-    print "RS $cmpdir\n";
+    print "RS $#g_sortfiles $cmpdir\n";
     $files=0;
     do
     {
@@ -409,4 +469,3 @@ else
 }
 
 
-DebugString("Exit");

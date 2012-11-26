@@ -1,7 +1,7 @@
 #! perl -w
 
 use Getopt::Std;
-use vars qw ($opt_h $opt_s $opt_d);
+use vars qw ($opt_h $opt_s $opt_d $opt_v);
 
 sub Usage($)
 {
@@ -26,7 +26,7 @@ sub DebugString($)
     print STDERR "[$file][$func]:$line $str";
 }
 
-getopts("hs:d:");
+getopts("hs:d:v");
 
 if (!defined($opt_s) || !defined($opt_d))
 {
@@ -48,7 +48,14 @@ if ( $#filters >= 0 )
 	$cmd .= join(" ",@filters);
 }
 
-$cmd .= " | perl dirsha.pl -f - \"$opt_s\" ";
+if (defined($opt_v))
+{
+	$cmd .= " | perl dirsha.pl -v -f - \"$opt_s\" ";
+}
+else
+{
+	$cmd .= " | perl dirsha.pl -f - \"$opt_s\" ";
+}
 
 if ( $#filters >= 0)
 {
