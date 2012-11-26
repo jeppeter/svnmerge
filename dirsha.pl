@@ -117,7 +117,7 @@ sub DirDiff($$@)
     my ($shadir);
     my ($content,$totalcount,$curcount,$percent,@rsarray,$curpercent,$lastcount);
     my ($perlen,$perstr);
-    my ($_b);
+    my ($_b,$clcon);
 
     $perlen = 0;
     $perstr = "";
@@ -216,10 +216,13 @@ sub DirDiff($$@)
 #            DebugString("Percent $curpercent $percent\n");
             if ( ($curcount - $lastcount) > 100 &&  defined($opt_v))
             {
+            	$clcon = "\r";
             	for ($_b = 0 ; $_b < $perlen ; $_b ++)
             	{
-            		print STDERR "\b";
+            		$clcon .= " ";
             	}
+            	$clcon .= "\r";
+            	print STDERR "$clcon";
             	$perstr = "$curpercent";
             	$perlen = length($perstr);
             	print STDERR "$perstr";
@@ -262,12 +265,13 @@ sub DirDiff($$@)
 
     if (defined($opt_v))
     {
-    	for ($_b=0;$_b < $perlen ; $_b++)
-    	{
-    		print STDERR "\b";
-    	}
-    	#print STDERR "\n";
-    	#print STDERR "last($perstr) $perlen\n";
+       	$clcon = "\r";
+       	for ($_b = 0 ; $_b < $perlen ; $_b ++)
+       	{
+       		$clcon .= " ";
+       	}
+       	$clcon .= "\r";
+       	print STDERR "$clcon";
     	print STDERR "100.00\n";
     }
 
