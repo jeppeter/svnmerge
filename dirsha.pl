@@ -5,7 +5,7 @@ use Digest::SHA1;
 use Getopt::Std;
 use ShaDir;
 use IO::Handle;
-use vars qw ($opt_h $opt_f $opt_s);
+use vars qw ($opt_h $opt_f $opt_s $opt_v $opt_V);
 my (@filters);
 my (@rawfiles);
 
@@ -102,6 +102,9 @@ sub Usage($)
     }
 
     print $fp "dirsha [-f compfile] dir \@filters\n";
+    print $fp "-f compfile to compare the sha file\n";
+    print $fp "-v for verbose mode\n";
+    print $fp "-V for display version\n";
     exit($exitcode);
 }
 
@@ -113,8 +116,11 @@ sub DirDiff($$@)
     my ($err,$rlines);
     my ($shadir);
     my ($content,$totalcount,$curcount,$percent,@rsarray,$curpercent,$lastcount);
+    my ($perlen,$perstr);
+    my ($_b);
 
-    
+    $perlen = 0;
+    $perstr = "";
 
 #DebugString("sortfiles @sortfiles\n");
     undef($curfile);
@@ -208,9 +214,15 @@ sub DirDiff($$@)
 
             $curpercent = $curcount / $totalcount;
 #            DebugString("Percent $curpercent $percent\n");
-            if ( ($curcount - $lastcount) > 100 )
+            if ( ($curcount - $lastcount) > 100 &&  defined($opt_v))
             {
-            	print STDERR "$curpercent\r";
+            	for ($_b = 0 ; $_b < $perlen ; $_b ++)
+            	{
+            		print STDERR "\b";
+            	}
+            	$perstr = "$curpercent";
+            	$perlen = length($perstr);
+            	print STDERR "$perstr";
             	$lastcount = $curcount;
             }
         }
@@ -247,6 +259,17 @@ sub DirDiff($$@)
 #DebugString("count $count\n");
     }
     while($cont);
+
+    if (defined($opt_v))
+    {
+    	for ($_b=0;$_b < $perlen ; $_b++)
+    	{
+    		print STDERR "\b";
+    	}
+    	#print STDERR "\n";
+    	#print STDERR "last($perstr) $perlen\n";
+    	print STDERR "100.00\n";
+    }
 
     print "AE $fdir\n";
 }
@@ -329,7 +352,7 @@ sub DirSha($$)
 
 
 
-getopts("hf:s:");
+getopts("hf:s:vV");
 
 my ($cmpdir)=shift @ARGV;
 my ($rdfile);
@@ -342,6 +365,12 @@ my (@wantsortfiles,@g_sortfiles);
 if (defined($opt_h))
 {
     Usage(0);
+}
+
+if (defined($opt_V))
+{
+	print STDOUT "$0 version 0.0.1\n";
+	exit 0;
 }
 
 if (defined($opt_f))
