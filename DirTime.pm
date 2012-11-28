@@ -79,4 +79,238 @@ sub _GetNextFile
 	return undef;
 }
 
+sub _GetCurFile
+{
+	my ($self) = @_;
+	if (defined($self->{_array}) && defined($self->{_array}[$self->{_curidx}]))
+	{
+		return $self->{_array}[$self->{_curidx}];
+	}
+	return undef;
+}
+
+sub _GetTime
+{
+    my ($self,$file)=@_;
+    my ($filename);
+    my ($mtime,@attr);
+
+	# if not set ,we use 0 for default
+    $mtime = "0";
+
+    $filename = "$self->{_dir}"."/$file";
+    if( -f $filename )
+    {
+    	@attr = stat($filename);
+    	if (@attr > 0)
+    	{
+    		$mtime = $attr[9];
+    	}
+    }    
+    return $mtime;
+}
+
+
+sub GetCmpString
+{
+	my ($self) = shift @_;
+	my ($file) = shift @_;
+	my ($omtime) = shift @_;
+	my ($str,$curmtime,$curfile,$cont);
+
+	if (!defined($self->{_dir}) || !defined($self->{_array}))
+	{
+		my ($p,$f,$l,$F) = caller(0);
+		die "[$p][$f][$F]$l: Not Init the dir or array\n";
+	}
+
+	undef($str);
+	$cont=0;
+	if (defined($file) && defined($omtime))
+	{
+		# it is the file
+		# test if we have a file to do
+		$curfile = $self->_GetCurFile();
+		if (defined($curfile))
+		{
+			# 
+			if ( "$curfile" lt "$file" )
+			{
+				$str = "+ $curfile\n";
+				# get next file
+				$curfile=$self->_GetNextFile();
+				if (defined($curfile))
+				{
+					$cont = 1;
+				}
+				else
+				{
+					# this will not set this again ,so 
+					# we should set here
+					$str .= "- $file\n";
+				}
+			}
+			elsif ( "$curfile" gt "$file" )
+			{
+				$str = "- $file\n";
+			}
+			else
+			{
+				# get next one
+				$curmtime = $self->_GetTime($curfile);
+				if ( $curmtime < $omtime )
+				{
+					# it means current file is old
+					$str = "O $curfile\n";
+					$str .= "T $curmtime\n";
+				}
+				else if ( $curmtime > $omtime )
+				{
+					# it means current file is young
+					$str = "Y $curfile\n";
+					$str .= "T $curmtime\n";
+				}
+				$self->_GetNextFile();
+			}
+		}
+		else
+		{
+			# no file ,so we should
+			$str = "- $file\n";
+		}
+		
+	}
+	elsif (defined($file))
+	{
+		# it is the directory
+		
+		$curfile = $self->_GetCurFile();
+		#$self->_DebugString("Diff $file <=> ".(defined($curfile) ? "$curfile" : "Not curfile")."\n");
+		if (defined($curfile))
+		{
+			if ( "$curfile" lt "$file" )
+			{
+				$str = "+ $curfile\n";
+				# get next file
+				$curfile = $self->_GetNextFile();
+				#$self->_DebugString("Diff $file <=> ".(defined($curfile) ? "$curfile" : "Not curfile")."\n");
+				if (defined($curfile))
+				{
+					$cont = 1;
+				}
+				else
+				{
+					# this is ok because we can not continue to compare the 
+					# file ,so it is to make it delete
+					$str .= "- $file\n";
+				}
+			}
+			elsif ( "$curfile" gt "$file" )
+			{
+				#$self->_DebugString("Diff $file <=> ".(defined($curfile) ? "$curfile" : "Not curfile")."\n");
+				$str = "- $file\n";
+			}
+			else
+			{
+				# get next one
+				#$self->_DebugString("Diff $file <=> ".(defined($curfile) ? "$curfile" : "Not curfile")."\n");
+				$self->_GetNextFile();
+				undef($str);
+			}
+		}
+		else
+		{
+			#$self->_DebugString("Diff $file <=> ".(defined($curfile) ? "$curfile" : "Not curfile")."\n");
+			$str = "- $file\n";
+		}
+	}
+	else
+	{
+		# it is nothing to do ,so we should get it
+		# it is in the last
+		$curfile = $self->_GetCurFile();
+		if (defined($curfile))
+		{
+			$str = "+ $curfile\n";
+			$curfile = $self->_GetNextFile();			
+			if (defined($curfile))
+			{
+				$cont = 1;
+			}
+			else
+			{
+				# now the $file is null so we do not add the 
+				# new - $file.
+			}
+		}
+	}
+	return ($str,$cont);
+}
+
+sub FormTime
+{
+	my ($self) =@_;
+	my ($file,$mtime);
+	my ($str,$cont,$fname);
+
+	if (!defined($self->{_dir}) || !defined($self->{_array}))
+	{
+		my ($p,$f,$l,$F) = caller(0);
+		die "[$p][$f][$F]$l: Not Init the dir or array\n";
+	}
+
+	$file = $self->_GetCurFile();
+	$cont = 0;
+	if (defined($file))
+	{
+		$fname = "$self->{_dir}"."/$file";
+		if ( -f $fname )
+		{
+			$mtime = $self->_GetTime($file);
+			$str = "F $file\n";
+			$str .= "T $mtime\n";
+		}
+		elsif ( -d $fname )
+		{
+			if (length($file))
+			{
+				$str = "F $file\n";
+			}
+		}
+		$file = $self->_GetNextFile();
+		if (defined($file))
+		{
+			$cont = 1;
+		}
+	}
+	return ($str,$cont);
+}
+
+
+sub PrepareInit
+{
+	my ($self) = @_;
+
+	if (!defined($self->{_dir}) || !defined($self->{_array}))
+	{
+		my ($p,$f,$l,$F) = caller(0);
+		die "[$p][$f][$F]$l: Not Init the dir or array\n";
+	}
+	
+	$self->{_curidx} = 0;
+	# to pretend this is for the continue
+	$self->{_cont} = 1;
+	return $self;
+}
+
+sub DESTROY
+{
+	if(defined($self->{_array}))
+	{
+		undef($self->{_array});
+	}
+}
+
+1;
+
 
