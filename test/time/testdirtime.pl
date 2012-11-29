@@ -74,6 +74,16 @@ sub Usage($)
 	exit $exitcode;
 }
 
+sub ErrorExit($$)
+{
+	my ($exitcode,$msg)=@_;
+    my($pkg,$fn,$ln,$s)=caller(0);
+	
+
+	print STDERR "$pkg[$fn:$ln]\t$msg\n";
+	exit $exitcode;
+}
+
 if ($#ARGV < 0)
 {
 	Usage(3);
@@ -84,6 +94,6 @@ my ($dira,$dirb);
 
 if ( ! -d $dir )
 {
-	
+	ErrorExit(3,"$dir not directory");
 }
 
