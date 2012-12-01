@@ -97,3 +97,24 @@ if ( ! -d $dir )
 	ErrorExit(3,"$dir not directory");
 }
 
+sub SetNewRandom($$$$$)
+{
+	my ($rc,$dira,$dirb,$equals,$notequals)=@_;
+	my ($isdir,$isamtime);
+	my ($cona,$conb,$i);
+
+	# now first to make 
+	for ($i=0;$i<$equals || $equals == 0 ; $i++)
+	{
+		$isdir = $rc->GetRandom(2);
+
+		if ($isdir)
+		{
+		}
+		else
+		{
+		}
+	}
+	
+}
+
