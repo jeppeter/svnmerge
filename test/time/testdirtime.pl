@@ -102,17 +102,45 @@ sub SetNewRandom($$$$$)
 	my ($rc,$dira,$dirb,$equals,$notequals)=@_;
 	my ($isdir,$isamtime);
 	my ($cona,$conb,$i);
+	my ($curf,$curaf,$curbf,$da,$db);
 
 	# now first to make 
-	for ($i=0;$i<$equals || $equals == 0 ; $i++)
+	for ($i=0;$i<$equals ; $i++)
 	{
-		$isdir = $rc->GetRandom(2);
+		$curf="";
+		$curaf = "$dira/";
+		$curbf = "$dirb/";
+		$isdir = 0;
+		do
+		{
+			$isdir = $rc->GetRandom(2);
 
-		if ($isdir)
+			if ($isdir)
+			{
+				$curf .= $rc->GetRandomFileName(12);
+				
+			}
+			else
+			{
+				$curf .= $rc->GetRandomFileName(12);
+			}
+		}while($isdir);
+
+		$curaf .= $curf;
+		$curbf .= $curf;
+
+		if (length($curaf) > 200 || length($curbf) > 200)
 		{
+			# do not make length ok
+			next;
 		}
-		else
+
+		$da = dirname($curaf);
+		$db = dirname($curbf);
+
+		if ( ! -e $da )
 		{
+			
 		}
 	}
 	
