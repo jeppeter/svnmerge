@@ -117,7 +117,7 @@ sub SetNewRandom($$$$$)
 
 			if ($isdir)
 			{
-				$curf .= $rc->GetRandomFileName(12);
+				$curf .= "/".$rc->GetRandomFileName(12);
 				
 			}
 			else
@@ -138,9 +138,38 @@ sub SetNewRandom($$$$$)
 		$da = dirname($curaf);
 		$db = dirname($curbf);
 
-		if ( ! -e $da )
+		if ( ! -e $da ||  ! -d $da )
 		{
-			
+			remove_tree($da);
+			make_path($da);
+		}
+
+		if ( ! -d $da )
+		{
+			die "could not make dir $da for $curaf\n";
+		}
+
+		if ( ! -e $curaf || ! -f $curaf )
+		{
+			remove($curaf);
+			touch($curaf);
+		}
+
+		if ( ! -e $db || ! -d $db )
+		{
+			remove_tree($db);
+			make_path($db);
+		}
+
+		if ( ! -d $db )
+		{
+			die "could not make dir $db for $curbf\n";
+		}
+
+		if ( ! -e $curbf || ! -f $curbf )
+		{
+			remove($curbf);
+			touch($curbf);
 		}
 	}
 	
