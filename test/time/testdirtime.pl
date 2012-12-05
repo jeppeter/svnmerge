@@ -103,6 +103,8 @@ sub SetNewRandom($$$$$)
 	my ($isdir,$isamtime);
 	my ($cona,$conb,$i);
 	my ($curf,$curaf,$curbf,$da,$db);
+	my ($amtime,$bmtime,@fst,$smtime);
+	my (@afiles,@bfiles);
 
 	# now first to make 
 	for ($i=0;$i<$equals ; $i++)
@@ -171,7 +173,36 @@ sub SetNewRandom($$$$$)
 			remove($curbf);
 			touch($curbf);
 		}
+
+		# now to utime
+		@fst = stat($curaf);
+		if (@fst <= 9)
+		{
+			die "can not stat $curaf\n";
+		}
+		$amtime = $fst[9];
+
+		@fst = stat($curbf);
+		if (@fst <= 9)
+		{
+			die "can not stat $curbf\n";
+		}
+
+		$bmtime = $fst[9];
+
+		$smtime = $amtime;
+		if ($bmtime > $amtime)
+		{
+			$smtime = $bmtime;
+		}
+
+		utime $smtime,$smtime,$curaf || die "can not change file $curaf\n";
+		utime $smtime,$smtime,$curbf || die "can not change file $curbf\n";
+
+		# ok nothing to handle for this
 	}
+
+	
 	
 }
 
