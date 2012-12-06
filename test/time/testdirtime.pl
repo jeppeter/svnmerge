@@ -110,7 +110,7 @@ sub SetNewRandom($$$$$)
 {
 	my ($rc,$dira,$dirb,$equals,$notequals)=@_;
 	my ($isdir,$isamtime);
-	my ($cona,$conb,$i);
+	my ($cona,$conb,$i,$j);
 	my ($curf,$curaf,$curbf,$da,$db);
 	my ($amtime,$bmtime,@fst,$smtime);
 	my (%afiles,%bfiles);
@@ -321,6 +321,43 @@ sub SetNewRandom($$$$$)
 	@bsortfiles = sort(keys %bfiles);
 
 	$outstr = "";
+
+	$i = 0;
+	$j = 0;
+
+	while( ($i < @asortfiles) && ($j < @bsortfiles))
+	{
+		# now to give the compare
+		if ( "$asortfiles[$i]" lt "$bsortfiles[$j]" )
+		{
+			$outstr .= "+ $asortfiles[$i]\n";
+			$i ++;			
+		}
+		elsif ( "$asortfiles[$i]" gt "$bsortfiles[$j]" )
+		{
+			$outstr .= "- $bsortfiles[$j]\n";
+			$j ++;
+		}
+		else
+		{
+			# that is the same,so we get the time
+			$curaf = $asortfiles[$i];
+			$curbf = $bsortfiles[$j];
+
+			if ( $afiles{$curaf} > $bfiles{$curbf} )
+			{
+				$outstr .= "Y $curaf\n";
+				$outstr .= "T $afiles{$curaf}\n";
+			}
+			elsif ($afiles{$curaf} < $bfiles{$curbf} )
+			{
+				$outstr .= "O $curbf\n";
+				$outstr .= "T $bfiles{$curbf}\n";
+			}
+			$i ++;
+			$j ++;
+		}
+	}
 	
 	
 }
