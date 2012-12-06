@@ -43,6 +43,15 @@ sub DebugString($)
     }
 }
 
+sub ErrorExit($$)
+{
+	my ($exitcode,$msg)=@_;
+    my($pkg,$fn,$ln,$s)=caller(0);
+
+    printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
+	exit ($exitcode);
+}
+
 
 BEGIN
 {
@@ -104,9 +113,11 @@ sub SetNewRandom($$$$$)
 	my ($cona,$conb,$i);
 	my ($curf,$curaf,$curbf,$da,$db);
 	my ($amtime,$bmtime,@fst,$smtime);
-	my (@afiles,@bfiles);
+	my (%afiles,%bfiles);
+	my ($outstr);
+	my (@asortfiles,@bsortfiles);
 
-	# now first to make 
+	# now first to make the things ok
 	for ($i=0;$i<$equals ; $i++)
 	{
 		$curf="";
@@ -148,7 +159,7 @@ sub SetNewRandom($$$$$)
 
 		if ( ! -d $da )
 		{
-			die "could not make dir $da for $curaf\n";
+			ErrorExit( 4,"could not make dir $da for $curaf");
 		}
 
 		if ( ! -e $curaf || ! -f $curaf )
@@ -165,7 +176,7 @@ sub SetNewRandom($$$$$)
 
 		if ( ! -d $db )
 		{
-			die "could not make dir $db for $curbf\n";
+			ErrorExit(4, "could not make dir $db for $curbf");
 		}
 
 		if ( ! -e $curbf || ! -f $curbf )
@@ -178,14 +189,14 @@ sub SetNewRandom($$$$$)
 		@fst = stat($curaf);
 		if (@fst <= 9)
 		{
-			die "can not stat $curaf\n";
+			ErrorExit(4, "can not stat $curaf");
 		}
 		$amtime = $fst[9];
 
 		@fst = stat($curbf);
 		if (@fst <= 9)
 		{
-			die "can not stat $curbf\n";
+			ErrorExit(4, "can not stat $curbf");
 		}
 
 		$bmtime = $fst[9];
@@ -196,12 +207,120 @@ sub SetNewRandom($$$$$)
 			$smtime = $bmtime;
 		}
 
-		utime $smtime,$smtime,$curaf || die "can not change file $curaf\n";
-		utime $smtime,$smtime,$curbf || die "can not change file $curbf\n";
+		utime $smtime,$smtime,$curaf || ErrorExit(4 ,"can not change file $curaf");
+		utime $smtime,$smtime,$curbf || ErrorExit(4, "can not change file $curbf");
 
 		# ok nothing to handle for this
 	}
 
+	# now to make the not equals ok
+	for ($i=0;$i<$notequals;$i++)
+	{
+		$curf = "";
+		$curaf = "$dira/";
+		$curbf = "$dirb/";
+		do
+		{
+			$isdir = $rc->GetRandom(2);
+
+			if ($isdir)
+			{
+				$curf .= "/".$rc->GetRandomFileName(12);
+				
+			}
+			else
+			{
+				$curf .= $rc->GetRandomFileName(12);
+			}
+		}while($isdir);
+
+		$curaf .= "$curf";
+
+		$curf = "";
+		do
+		{
+			$isdir = $rc->GetRandom(2);
+
+			if ($isdir)
+			{
+				$curf .= "/".$rc->GetRandomFileName(12);
+				
+			}
+			else
+			{
+				$curf .= $rc->GetRandomFileName(12);
+			}
+		}while($isdir);
+
+		$curbf .= "$curf";
+
+		# now if the file is ok
+		if (length($curaf) < 200)
+		{
+			$da = dirname($curaf);
+			if ( ! -e $da ||  ! -d $da )
+			{
+				remove_tree($da);
+				make_path($da);
+			}
+
+			if ( ! -d $da )
+			{
+				ErrorExit(4, "could not make dir $da for $curaf");
+			}
+
+			# and touch the file
+			if ( ! -e $curaf || ! -f $curaf )
+			{
+				remove($curaf);
+				touch($curaf);
+			}
+
+			@fst = stat($curaf);
+			if (@fst <= 9)
+			{
+				ErrorExit(4, "can not stat $curaf");
+			}
+			$amtime = $fst[9];
+			$afiles{$curaf} = $amtime;			
+		}
+
+		if (length($curbf) < 200)
+		{
+			$db = dirname($curbf);
+			if ( ! -e $db ||  ! -d $db )
+			{
+				remove_tree($db);
+				make_path($db);
+			}
+
+			if ( ! -d $db )
+			{
+				ErrorExit(4, "could not make dir $db for $curbf");
+			}
+
+			# and touch the file
+			if ( ! -e $curbf || ! -f $curbf )
+			{
+				remove($curbf);
+				touch($curbf);
+			}
+
+			@fst = stat($curbf);
+			if (@fst <= 9)
+			{
+				ErrorExit(4, "can not stat $curbf");
+			}
+			$bmtime = $fst[9];
+			$bfiles{$curbf} = $bmtime;			
+			
+		}		
+	}
+	
+	@asortfiles = sort(keys %afiles);
+	@bsortfiles = sort(keys %bfiles);
+
+	$outstr = "";
 	
 	
 }
