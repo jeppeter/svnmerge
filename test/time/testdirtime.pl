@@ -378,12 +378,39 @@ sub SetNewRandom($$$$$$$)
 	return $outstr;
 }
 
-sub CallDirTimePm($$)
+
+my (@filters,@rawfiles);
+
+sub DirFilter
 {
-	my ($adir,$bdir)=@_;
+    my ($curfile)=$_;
+    my ($ret);
+    $ret = 0;
+    foreach (@filters)
+    {
+        my($curfilter)=$_;
+        if ($File::Find::name =~ m/$curfilter/)
+        {
+            $ret = 1;
+            last;
+        }
+    }
+    if ($ret == 0)
+    {
+        if ( (-f $File::Find::name) || ( -d $File::Find::name ))
+        {
+            push(@rawfiles,$File::Find::name);
+        }
+    }
+}
+
+
+sub CallDirTimePm($$@)
+{
+	my ($adir,$bdir,@_filters)=@_;
 	my (@asorfiles,@bsorfiles);
 
-	
+	undef (@rawfiles);
 	
 }
 
