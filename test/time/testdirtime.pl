@@ -106,9 +106,9 @@ if ( ! -d $dir )
 	ErrorExit(3,"$dir not directory");
 }
 
-sub SetNewRandom($$$$$)
+sub SetNewRandom($$$$$$$)
 {
-	my ($rc,$dira,$dirb,$equals,$notequals)=@_;
+	my ($rc,$dira,$dirb,$equals,$notequals,$ahref,$bhref)=@_;
 	my ($isdir,$isamtime);
 	my ($cona,$conb,$i,$j);
 	my ($curf,$curaf,$curbf,$da,$db);
@@ -359,6 +359,79 @@ sub SetNewRandom($$$$$)
 		}
 	}
 	
+	while($i < @asortfiles)
+	{
+		$outstr .= "+ $asortfiles[$i]\n";
+		$i ++;
+	}
+
+	while($j < @bsortfiles)
+	{
+		$outstr .= "- $bsortfiles[$j]\n";
+		$j ++;
+	}
+
+	%{$ahref} = %afiles;
+	%{$bhref} = %bfiles;
+
+	# now we return it
+	return $outstr;
+}
+
+sub CallDirTimePm($$)
+{
+	my ($adir,$bdir)=@_;
+	my (@asorfiles,@bsorfiles);
+
+	
 	
 }
+
+
+sub Usage()
+{
+    my($exitcode)=shift @_;
+    my ($msg)=shift @_;
+    my($pkg,$fn,$ln,$s)=caller(0);
+    my ($fp)=STDERR;
+
+	if ($exitcode == 0)
+	{
+		$fp = STDOUT;
+	}
+    if(defined($msg))
+    {
+        printf $fp "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
+    }
+
+    print $fp "$0 dir times\n";
+    exit($exitcode);
+}
+
+if (@ARGV < 2)
+{
+	Usage(3);
+}
+
+my ($testdir)=shift @ARGV;
+my ($times)=shift @ARGV;
+my ($i);
+my ($adir,$bdir);
+
+$adir = "$testdir/a";
+$bdir = "$testdir/b";
+
+for ($i=0;$i < $times;$i++)
+{
+	# first to remove the dir
+	remove_tree($adir);
+	remove_tree($bdir);
+
+	make_path($adir);
+	make_path($bdir);
+
+	
+	
+}
+
 
