@@ -108,7 +108,7 @@ if ( ! -d $dir )
 
 sub SetNewRandom($$$$$$$)
 {
-	my ($rc,$dira,$dirb,$equals,$notequals,$ahref,$bhref)=@_;
+	my ($rc,$dira,$dirb,$equals,$notequals)=@_;
 	my ($isdir,$isamtime);
 	my ($cona,$conb,$i,$j);
 	my ($curf,$curaf,$curbf,$da,$db);
@@ -371,8 +371,6 @@ sub SetNewRandom($$$$$$$)
 		$j ++;
 	}
 
-	%{$ahref} = %afiles;
-	%{$bhref} = %bfiles;
 
 	# now we return it
 	return $outstr;
@@ -450,6 +448,9 @@ $bdir = "$testdir/b";
 
 for ($i=0;$i < $times;$i++)
 {
+	my ($foutstr,$eoutstr);
+	my ($rc);
+	my ($cmd,$fh);
 	# first to remove the dir
 	remove_tree($adir);
 	remove_tree($bdir);
@@ -457,8 +458,25 @@ for ($i=0;$i < $times;$i++)
 	make_path($adir);
 	make_path($bdir);
 
-	
-	
+	$rc = TA->new();
+	# now to make the 
+	$foutstr = SetNewRandom($rc,$adir,$bdir,100,20);
+		
+	$cmd = "perl ../../dirtime.pl $adir | perl ../../dirtime.pl -f - $bdir";
+
+	open($fh,"$cmd |") || ErrorExit(4,"can not runcmd $cmd");
+
+	$eoutstr = "";
+	while(<$fh>)
+	{
+		$eoutstr .= $_;
+	}
+
+	close($fh);
+	if ( "$eoutstr"  ne "$foutstr")
+	{
+		ErrorExit(4,"String at $adir <=> $bdir\nfoutstr ==============\n$foutstr\n===============\neoutstr ++++++++++++++++++++++\n$eoutstr\n++++++++++++++++++\n");
+	}	
 }
 
 
