@@ -29,7 +29,6 @@ sub FindFile($@)
 				{
 					next;
 				}
-			$fn = "$curd/$curf";
 			foreach $curfilter (@filters)
 			{
 				if ($curf =~ /$curfilter/m)
@@ -37,7 +36,7 @@ sub FindFile($@)
 					goto NEXT_READ;
 				}
 			}
-			push(@curdirfiles,$fn);
+			push(@curdirfiles,$curf);
 		}
 
 		closedir($curdh);
@@ -47,6 +46,7 @@ sub FindFile($@)
 		undef(@curdirfiles);
 
 		HANDLE_CFS:
+		undef($fn);
 		while(@{$cfsref})
 		{
 			$curf = shift(@{$cfsref});
@@ -59,7 +59,7 @@ sub FindFile($@)
 			}
 		}
 
-		if (@{$cfsref} > 0)
+		if (defined($fn) && -d $fn)
 		{
 			$curd = $fn;
 			push(@cfsarray,$cfsref);
@@ -69,7 +69,7 @@ sub FindFile($@)
 			goto NEXT_READ;
 		}
 		else
-		{
+		{			
 			undef($cfsref);
 			$cfsref = pop(@cfsarray);
 			$curd = pop(@curdirdirs);
