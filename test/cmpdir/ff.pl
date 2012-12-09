@@ -9,6 +9,17 @@ sub ErrorExit($$)
 	exit ($exitcode);
 }
 
+sub DebugString($)
+{
+    my($msg)=@_;
+    my($pkg,$fn,$ln,$s)=caller(0);
+
+    {
+        printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
+    }
+}
+
+
 sub FindFile($@)
 {
 	my ($d,@filters)=@_;
@@ -35,7 +46,7 @@ sub FindFile($@)
 				{
 					goto NEXT_READ;
 				}
-			}
+			}			
 			push(@curdirfiles,$curf);
 		}
 
@@ -61,9 +72,9 @@ sub FindFile($@)
 
 		if (defined($fn) && -d $fn)
 		{
-			$curd = $fn;
 			push(@cfsarray,$cfsref);
 			push(@curdirdirs,$curd);
+			$curd = $fn;
 			opendir($curdh,$curd) || ErrorExit(4,"can not open $curd $!");
 			# read the next one
 			goto NEXT_READ;
