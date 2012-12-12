@@ -54,10 +54,11 @@ sub DirTimePrint($$$$@)
 	return 0;
 }
 
-sub DirTimeComparePrint($$$$@)
+sub DirTimePush($$$$@)
 {
 	my ($dir,$fname,$curd,$pname,@args)=@_;
 	my ($href)=@args;
+	my ($aref);
 	my ($relativefname,$tfname);
 	my (@sts,$mtime);
 
@@ -68,9 +69,66 @@ sub DirTimeComparePrint($$$$@)
 	{
 		# now to push the file
 		lock($href);
-		push(@{$href});
+		$aref = $href->{_array};
+		push(@{$aref},$relatetivefname);
+	}
+	return 0;
+}
+
+sub GetFileNameFromArray($)
+{
+	my ($href)=@_;
+	my (@retarr,$isended,$aref);
+	
+	@retarr = ();
+	$isended = 0;
+	do
+	{
+		{
+			lock($href);
+			$aref = $href->{_array};
+			@retarr = @{$aref};
+			$isended = $href->{_ended};
+		}
+
+		if ($isended == 0 && @retarr == 0)
+		{
+			usleep(1000);
+		}
+	}while((@retarr == 0) && $isened == 0);
+
+	return @retarr;
+}
+
+sub GetNextFile($)
+{
+	my ($href)=@_;
+	my (@getarr,$aref,$getf);
+	
+try_again:
+	$aref = $href->{_stored};
+	$getf = shift(@{$aref});
+	if (defined($getf))
+	{
+		# just get the name
+		$href->{_getf} = $getf;
+		return $getf;
 	}
 
-	# we have overed ,so we should not get any more
-	
+	# now to get from the 
+	@getarr = GetFileNameFromArray($href);
+	if (@getarr > 0)
+	{
+		$href->{_stored} = [@getarr];
+		goto try_again;
+	}
+	undef($href->{_getf});
+	return undef;
+}
+
+sub GetCurFile($)
+{
+	my ($href)=@_;
+
+	return defined($href->{_getf}) ? $href->{_getf} : undef;
 }

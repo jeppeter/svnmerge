@@ -52,10 +52,8 @@ sub BThr(@)
 		{
 			lock($href);
 			$aref = $href->{_array};
-			while(defined($get = shift(@{$aref})))
-			{
-				push(@barray,$get);
-			}
+			@barray = @{$aref};
+			@{$aref} = ();
 			print "In B array @{$aref}\n";
 		}
 		if (length(@barray) > 0)
