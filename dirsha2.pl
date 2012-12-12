@@ -130,5 +130,6 @@ sub GetCurFile($)
 {
 	my ($href)=@_;
 
-	return defined($href->{_getf}) ? $href->{_getf} : undef;
+	# we should get next for the first time
+	return defined($href->{_getf}) ? $href->{_getf} : GetNextFile($href);
 }
