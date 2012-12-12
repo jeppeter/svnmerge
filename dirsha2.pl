@@ -16,6 +16,9 @@
 #
 ####################################
 
+use threads;
+use threads::shared;
+use Time::HiRes qw(usleep);
 
 
 # now to handle the time function
@@ -61,7 +64,12 @@ sub DirTimeComparePrint($$$$@)
 	$tfname = $fname;
 	$fname =~ s/^\Q$dir\E[\/\\]+//;
 	$relativefname = $fname;
-	
+
+	{
+		# now to push the file
+		lock($href);
+		push(@{$href});
+	}
 
 	# we have overed ,so we should not get any more
 	
