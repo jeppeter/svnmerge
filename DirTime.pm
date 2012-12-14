@@ -160,16 +160,14 @@ sub GetCmpString
 				$curmtime = $self->_GetTime($curfile);
 				if ( $curmtime < $omtime )
 				{
-					# it means current file is old
-					$str = "O $curfile\n";
-					$str .= "T $curmtime\n";
+					# it means current file is old so do not use any one
 				}
 				else if ( $curmtime > $omtime )
 				{
 					# it means current file is young
 					$str = "Y $curfile\n";
-					$str .= "T $curmtime\n";
 				}
+				# get next one
 				$self->_GetNextFile();
 			}
 		}
