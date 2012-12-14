@@ -2,6 +2,11 @@
 
 package DirTime ;
 
+use threads;
+use threads::shared;
+use Time::HiRes qw(usleep);
+
+
 sub _DebugString
 {
     my ($self,$str)=@_;
@@ -38,55 +43,125 @@ sub SetDir
 	return $self;
 }
 
-sub SetFiles
+sub SetFilters
 {
-	my ($self,@files)=@_;
-	my (@formfiles)=();
-	if (defined($self->{_array}))
-	{
-		undef($self->{_array});
-	}
+	my ($self,@filters)=@_;
 
-	
-	while(@files)
-	{
-		my ($_cur)=shift @files;
-		if (length($_cur))
-		{
-			push(@formfiles,$_cur);
-		}
-	}
 
-	$self->{_curidx} = 0;
-	$self->{_array} = [@formfiles];
+	undef($self->{_filters});
+	$self->{_filters} = [@filters];
+	share($self->{_filters});
 	return $self;
 }
 
-sub _GetNextFile
+sub __ScanDirCallBack($$$$@)
 {
-	my ($self) = @_;
-	if (defined($self->{_array}) && defined($self->{_array}[$self->{_curidx}+1]))
+	my ($dir,$fname,$curd,$pname,@args)=@_;
+	my ($self)=@args;
+	my ($aref);
+	my ($relativefname,$tfname);
+	my (@sts,$mtime);
+
+	$tfname = $fname;
+	$fname =~ s/^\Q$dir\E[\/\\]+//;
+	$relativefname = $fname;
+
 	{
-		$self->{_curidx} += 1;
-		$self->{_cont}=1;
-		return $self->{_array}[$self->{_curidx}];
+		# now to push the file
+		lock($self);
+		$aref = $self->{_array};
+		push(@{$aref},$relatetivefname);
 	}
+	return 0;
+}
+
+sub __ScanDir($$)
+{
+	my ($self,$dir)=@_;
+	my ($fs,$ret);
+
+
+	{
+		lock($self);
+		$self->{_ended} = 0;
+	}
+	$fs = FindSort->new();
+	$fs->SetCallBack(\&__ScanDirCallBack,$self);
+	$fs->SetFilters(@filters);
+	$ret = $fs->ScanDirs($dir);
+
+	{
+		lock($self);
+		$self->{_ended} = 1;
+	}
+
+	return $ret;
+}
+
+sub __StartScanDir
+{
+	my ($self,$dir)=@_;
+
 	
-	if (defined($self->{_array}[$self->{_curidx}]))
+}
+
+sub __GetNextFile($)
+{
+	my ($self)=@_;
+	my (@retarr,$retfile);
+	my ($isended,$aref);
+
+try_again:
+	undef($retfile);
+	undef($self->{_curfile});
+	if (defined({$self->{_stored}}))
 	{
-		$self->{_curidx} += 1;
+		$aref = $self->{_stored} ;
+		$retfile = shift(@{$aref});
 	}
+	if (defined($retfile))
+	{
+		$self->{_curfile} = $retfile;
+		return $retfile;
+	}
+
+	
+	@retarr = ();
+	$isended = 0;
+	do	
+	{
+		{
+			lock($self);
+			if (defined($self->{_array}))
+			{
+				$aref = $self->{_array};
+				@retarr = @{$aref};
+			}
+			$isended = $self-{_ended};
+		}
+
+		if ($isended == 0 && @retarr == 0)
+		{
+			usleep(1000);
+		}		
+	}while($isended == 0 && @retarr == 0);
+
+	
+	$self->{_stored} = [@retarr];
+	if (@retarr > 0)
+	{
+		goto try_again;
+	}
+	# nothing to do ,so return null
 	return undef;
 }
+
 
 sub _GetCurFile
 {
 	my ($self) = @_;
-	if (defined($self->{_array}) && defined($self->{_array}[$self->{_curidx}]))
-	{
-		return $self->{_array}[$self->{_curidx}];
-	}
-	return undef;
+	# we call get the next file ,because in the first ,we not defined the $self->{_curfile}
+	return defined($self->{_curfile}) ? $self->{_curfile} : $self->__GetNextFile();
 }
 
 sub _GetTime
