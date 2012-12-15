@@ -15,6 +15,20 @@ sub _DebugString
     print STDERR "[$file][$func]:$line $str";
 }
 
+sub __SetError
+{
+	my ($self,$exitcode,$msg)=@_;
+	$self->{_exitcode} = $exitcode;
+	$self->{_msg}=$msg;
+	return $exitcode;
+}
+
+sub GetError
+{
+	my ($self)=@_;
+	return defined($self->{_msg}) ? $self->{_msg} : "";
+}
+
 
 sub new
 {
@@ -33,11 +47,6 @@ sub SetDir
 	if ($self->{_dir})
 	{
 		undef($self->{_dir});
-	}
-	if ($self->{_curidx})
-	{
-		# index is 0 for it will make the compare ok
-		$self->{_curidx} = 0;
 	}
 	$self->{_dir} = $dir;
 	return $self;
@@ -98,11 +107,30 @@ sub __ScanDir($$)
 	return $ret;
 }
 
-sub __StartScanDir
+sub StartScanDir
 {
 	my ($self,$dir)=@_;
+	my ($thrid);
 
-	
+	if (defined($self->{_thrid}))
+	{
+		$thrid = $self->{_thrid};
+		# now to wait for thread exit
+		$thrid->{'KILL'};
+		$thrid->join();
+		undef($self->{_thrid});
+	}
+
+	# now to start 
+	$thrid = threads->create(\&__ScanDir,$self,$dir);
+	if (!defined($thrid))
+	{
+		return -3;
+	}
+	$self->{_thrid} = $thrid;
+
+	# now to return ok
+	return 0;	
 }
 
 sub __GetNextFile($)
