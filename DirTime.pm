@@ -36,7 +36,6 @@ sub new
 	my ($self) = {};
 
 	bless $self,$class;
-	$self->{_cont} = 1;
 	return $self;
 }
 
@@ -84,11 +83,17 @@ sub __ScanDirCallBack($$$$@)
 	return 0;
 }
 
+sub __ExitThread
+{
+	threads->exit();
+}
+
 sub __ScanDir($$)
 {
 	my ($self,$dir)=@_;
-	my ($fs,$ret);
+	my ($fs,$ret,@filters,$aref);
 
+	$self->SIG{'KILL'} = \&__ExitThread;
 
 	{
 		lock($self);
@@ -96,7 +101,13 @@ sub __ScanDir($$)
 	}
 	$fs = FindSort->new();
 	$fs->SetCallBack(\&__ScanDirCallBack,$self);
-	$fs->SetFilters(@filters);
+	if (defined($self->{_filters}))
+	{
+		lock($self);
+		$aref = $self->{_filters};
+		@filters = @{$aref};
+		$fs->SetFilters(@filters);
+	}
 	$ret = $fs->ScanDirs($dir);
 
 	{
@@ -121,6 +132,14 @@ sub StartScanDir
 		undef($self->{_thrid});
 	}
 
+	# now to share the parameters
+	# 
+	$self->{_array} = [];
+	$self->{_ended} = 0;
+	share($self->{_ended});
+	share($self->{_array});
+	share($self);
+
 	# now to start 
 	$thrid = threads->create(\&__ScanDir,$self,$dir);
 	if (!defined($thrid))
@@ -133,7 +152,7 @@ sub StartScanDir
 	return 0;	
 }
 
-sub __GetNextFile($)
+sub _GetNextFile($)
 {
 	my ($self)=@_;
 	my (@retarr,$retfile);
@@ -387,25 +406,20 @@ sub FormTime
 	return ($str,$cont);
 }
 
-
-sub PrepareInit
-{
-	my ($self) = @_;
-
-	if (!defined($self->{_dir}) || !defined($self->{_array}))
-	{
-		my ($p,$f,$l,$F) = caller(0);
-		die "[$p][$f][$F]$l: Not Init the dir or array\n";
-	}
-	
-	$self->{_curidx} = 0;
-	# to pretend this is for the continue
-	$self->{_cont} = 1;
-	return $self;
-}
-
 sub DESTROY
 {
+	if (defined($self->{_thrid}))
+	{
+		my ($thrid) = $self->{_thrid};
+		$thrid->kill{'KILL'};
+		$thrid->join();
+		undef($self->{_thrid});
+	}
+
+	if (defined($self->{_stored}))
+	{
+		undef($self->{_stored});
+	}
 	if(defined($self->{_array}))
 	{
 		undef($self->{_array});

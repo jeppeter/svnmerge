@@ -16,10 +16,7 @@
 #
 ####################################
 
-use threads;
-use threads::shared;
-use Time::HiRes qw(usleep);
-
+use DirTime;
 
 # now to handle the time function
 sub DirTimePrint($$$$@)
@@ -54,82 +51,26 @@ sub DirTimePrint($$$$@)
 	return 0;
 }
 
-sub DirTimePush($$$$@)
+sub ListDirTime($$@)
 {
-	my ($dir,$fname,$curd,$pname,@args)=@_;
-	my ($href)=@args;
-	my ($aref);
-	my ($relativefname,$tfname);
-	my (@sts,$mtime);
+	my ($dir,$outfh,@filters)=@_;
+	my ($ret);
+	my ($fs);
 
-	$tfname = $fname;
-	$fname =~ s/^\Q$dir\E[\/\\]+//;
-	$relativefname = $fname;
-
-	{
-		# now to push the file
-		lock($href);
-		$aref = $href->{_array};
-		push(@{$aref},$relatetivefname);
-	}
-	return 0;
+	$fs = FindSort->new();
+	$fs->SetDir($dir);
+	$fs->SetFilters(@filters);
+	$fs->SetCallBack(\&DirTimePrint,$outfh);
+	$ret = $fs->ScanDirs($dir);
+	return $ret;
 }
 
-sub GetFileNameFromArray($)
+sub DiffDirTime($$$@)
 {
-	my ($href)=@_;
-	my (@retarr,$isended,$aref);
-	
-	@retarr = ();
-	$isended = 0;
-	do
-	{
-		{
-			lock($href);
-			$aref = $href->{_array};
-			@retarr = @{$aref};
-			$isended = $href->{_ended};
-		}
-
-		if ($isended == 0 && @retarr == 0)
-		{
-			usleep(1000);
-		}
-	}while((@retarr == 0) && $isened == 0);
-
-	return @retarr;
+	my ($dir,$infh,$outfh,@filters)=@_;
+	my ($dt);
+	# now to
+	$dt = DirTime->new();
+	$dt->
 }
 
-sub GetNextFile($)
-{
-	my ($href)=@_;
-	my (@getarr,$aref,$getf);
-	
-try_again:
-	$aref = $href->{_stored};
-	$getf = shift(@{$aref});
-	if (defined($getf))
-	{
-		# just get the name
-		$href->{_getf} = $getf;
-		return $getf;
-	}
-
-	# now to get from the 
-	@getarr = GetFileNameFromArray($href);
-	if (@getarr > 0)
-	{
-		$href->{_stored} = [@getarr];
-		goto try_again;
-	}
-	undef($href->{_getf});
-	return undef;
-}
-
-sub GetCurFile($)
-{
-	my ($href)=@_;
-
-	# we should get next for the first time
-	return defined($href->{_getf}) ? $href->{_getf} : GetNextFile($href);
-}
