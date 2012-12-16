@@ -8,8 +8,6 @@ my (@array,$arrayref);
 my (%hashb,$href);
 my ($thra,$thrb);
 
-#share($thra);
-#share($thrb);
 share(@array);
 share($arrayref);
 share(%hashb);
@@ -28,9 +26,9 @@ sub AThr(@)
 			lock($href);
 			$aref = $href->{_array};
 			push(@{$aref},$i);
-			print "In A array @{$aref}\n";			
+			print "In A($i) push $i\n";
+			print "In A($i) array @{$aref}\n";			
 		}
-		print "In A push $i\n";
 		usleep(1000);
 	}
 	{
@@ -49,19 +47,20 @@ sub BThr(@)
 
 	for ($i=0;$i < 20;$i++)
 	{
-		usleep(1000);
+		usleep(100000);
 		undef($get);
 		@barray=();
+		if (defined($href->{_array}))
 		{
 			lock($href);
-			$aref = $href->{_array};
+			$aref = $href->{_array};			
 			@barray = @{$aref};
 			@{$aref} = ();
-			print "In B array @{$aref}\n";
 		}
-		if (length(@barray) > 0)
+		if ($#barray > 0)
 		{
-			print "In B($i) pop @barray\n";
+			print "In B($i) pop (@barray)$#barray\n";
+			$self->{_stored}=[@barray];
 		}
 		else
 		{

@@ -89,7 +89,7 @@ sub __ScanDirCallBack($$$$@)
 		lock($self);
 		$aref = $self->{_array};
 		push(@{$aref},$relatetivefname);
-		$self->_DebugString("push $relativefname to @{$aref}\n");
+		$self->_DebugString("push $relativefname to $aref ".scalar(@{$aref})."\n");
 	}
 	
 	return 0;
@@ -185,11 +185,12 @@ try_again:
 	if (defined({$self->{_stored}}))
 	{
 		$aref = $self->{_stored} ;
+		$self->_DebugString("pop array @{$aref}#$aref#(".scalar(@{$aref}).")\n");
 		$retfile = shift(@{$aref});
 	}
 	if (defined($retfile))
 	{
-		$self->_DebugString("retfile $retfile\n");
+		$self->_DebugString("shift ($retfile)\n");
 		$self->{_curfile} = $retfile;
 		return $retfile;
 	}
@@ -205,26 +206,27 @@ try_again:
 			{
 				$aref = $self->{_array};
 				@retarr = @{$aref};
-				$aref = ();
+				$self->{_array}=shared_clone([]);
 			}
 			$isended = $self->{_ended};
 		}
 
-		if (length(@retarr) > 0)
+		if (scalar(@retarr) > 0)
 		{
 			$self->_DebugString("retarr @retarr\n");
 		}
-		if ($isended == 0 && length(@retarr) == 0)
+		if ($isended == 0 && scalar(@retarr) == 0)
 		{
 			usleep(1000);
 		}		
-	}while($isended == 0 && length(@retarr) == 0);
+	}while($isended == 0 && scalar(@retarr) == 0);
 
 	
 	$self->{_stored} = shared_clone([@retarr]);
-	if (length(@retarr) > 0)
+	$self->_DebugString("stored $self->{_stored}\n");
+	if ($#retarr > 0)
 	{
-		$self->_DebugString("length ".length(@retarr)."\n");
+		$self->_DebugString("length $#retarr(@retarr)\n");
 		goto try_again;
 	}
 	# nothing to do ,so return null
