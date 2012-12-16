@@ -33,13 +33,12 @@ sub GetError
 sub new
 {
 	my ($class) =@_;
-	my ($self) = {};
+	my ($self) = shared_clone({});
 
 	bless $self,$class;
-	$self->{_array} = [];
-	$self->{_ended} = 0;
-	$self->{_thrid} = 0;
-	share($self);
+	$self->{_array} = shared_clone([]);
+	$self->{_ended} = shared_clone(0);
+	$self->{_thrid} = shared_clone(0);
 	share($self->{_ended});
 	share($self->{_array});
 	share($self->{_thrid});

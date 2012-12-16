@@ -47,7 +47,7 @@ sub ThrA
 			lock($self);
 			$aref = $self->{_array};
 			push(@{$aref},$i);
-			$self->_DebugString("A push($i) $i @{$aref}\n");
+			$self->_DebugString("A push($i) $i $aref @{$aref}\n");
 		}
 
 		usleep(1000);
