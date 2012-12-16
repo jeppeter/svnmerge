@@ -159,6 +159,7 @@ sub Usage
 }
 
 getopts("hf:t:vV");
+my (@filters,$ret);
 
 if (defined($opt_h))
 {
@@ -170,12 +171,37 @@ if (defined($opt_V))
 	print STDOUT "$0 version 0.0.1\n";
 	exit (0);
 }
+@filters = @ARGV;
 
 if (defined($opt_f) && defined($opt_t))
 {
+	my ($ifh);
+	if ("$opt_f" == "-")
+	{
+		$ifh = STDIN
+	}
+	else
+	{
+		open($ifh,"<$opt_f") || ErrorExit(6,"can not open $opt_f $!");
+	}
+	$ret = DiffDirTime($opt_f,$ifh,STDOUT,@filters);
+	if ($ifh != STDIN)
+	{
+		close($ifh);
+	}
+	undef $ifh;
+	if ($ret < 0)
+	{
+		ErrorExit(4,"can not compare with ($opt_f) dir($opt_t)");
+	}
 }
 elsif (defined($opt_t))
 {
+	$ret = ListDirTime($opt_t,STDOUT,@filters);
+	if ($ret < 0)
+	{
+		ErrorExit(5,"can not list ($opt_t)");
+	}
 }
 else
 {
