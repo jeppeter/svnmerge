@@ -89,7 +89,7 @@ sub __ScanDirCallBack($$$$@)
 		lock($self);
 		$aref = $self->{_array};
 		push(@{$aref},$relatetivefname);
-		$self->_DebugString("push $relativefname to $aref ".scalar(@{$aref})."\n");
+		$self->_DebugString("push $relativefname to $aref ".scalar(@{$aref})." #@{$aref}#\n");
 	}
 	
 	return 0;
@@ -223,7 +223,8 @@ try_again:
 
 	
 	$self->{_stored} = shared_clone([@retarr]);
-	$self->_DebugString("stored $self->{_stored}\n");
+	$aref = $self->{_stored};
+	$self->_DebugString("stored @{$aref}\n");
 	if ($#retarr > 0)
 	{
 		$self->_DebugString("length $#retarr(@retarr)\n");
@@ -273,7 +274,7 @@ sub GetCmpString
 	if (!defined($self->{_dir}) )
 	{
 		my ($p,$f,$l,$F) = caller(0);
-		$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")." array ".(defined($self->{_array}))."\n");
+		$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")." \n");
 		die "[$p][$f][$F]$l: Not Init the dir or array\n";
 	}
 	$self->_DebugString(" CmpString file ".(defined($file) ? $file: "null")." omtime ".(defined($omtime) ? $omtime : "null")."\n");

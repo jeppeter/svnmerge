@@ -83,7 +83,7 @@ sub BThr(@)
 
 $arrayref= \@array;
 $href = \%hashb;
-$href->{_array} = $arrayref;
+$href->{_array} = shared_clone([]);
 $href->{_ended} = 0;
 $thra = threads->create(\&AThr,$href);
 $thrb = threads->create(\&BThr,$href);

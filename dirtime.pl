@@ -63,8 +63,10 @@ sub ListDirTime($$@)
 	$fs = FindSort->new();
 	$fs->SetDir($dir);
 	$fs->SetFilters(@filters);
+	print $outfh "TS $dir\n";
 	$fs->SetCallBack(\&DirTimePrint,$outfh);
 	$ret = $fs->ScanDirs($dir);
+	print $outfh "TE $dir\n";
 	return $ret;
 }
 
