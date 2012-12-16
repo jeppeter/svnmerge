@@ -12,6 +12,13 @@ sub ErrorExit
     print STDERR "[$file][$func]:$line $str";
     exit($exitcode);
 }
+sub DebugString
+{
+    my ($str)=@_;
+    my ($package,$file,$line,$func)=caller(0);
+
+    print STDERR "[$file][$func]:$line $str";
+}
 
 
 # now to handle the time function
@@ -74,6 +81,7 @@ sub DiffDirTime($$$@)
 	$dt->SetFilters(@filters);
 	$dt->SetDir($dir);
 	$dt->StartScanDir($dir);
+	#DebugString("infh $infh filters @filters\n");
 
 	undef($file);
 	undef($ftime);
@@ -82,7 +90,8 @@ sub DiffDirTime($$$@)
 	{
 		my ($line)=$_;
 		$lineno ++;
-
+		chomp($line);
+		#DebugString("$lineno:$line\n");
 		if ($line =~ m/^F /o)
 		{
 			if(defined($file))
@@ -92,16 +101,15 @@ sub DiffDirTime($$$@)
 					($str,$cont)=$dt->GetCmpString($file,undef);
 					print $outfh "$str";
 				}while($cont);
-
-				$line =~ s/^F //;
-				$file = $line;
 			}
+			$line =~ s/^F //;
+			$file = $line;
 		}
 		elsif ($line =~ m/^T /o)
 		{
 			if (!defined($file))
 			{
-				ErrorExit(4,"Need file at $lineno\n");;
+				ErrorExit(4,"Need file at lineno($lineno)\n");;
 			}
 			$line =~ s/^T //;
 			$ftime = $line;
@@ -129,6 +137,7 @@ sub DiffDirTime($$$@)
 		($str,$cont)=$dt->GetCmpString(undef,undef);
 		print $outfh "$str";
 	}while($cont);
+	$dt->DESTROY();
 
 	return 0;
 }
@@ -177,16 +186,19 @@ if (defined($opt_V))
 if (defined($opt_f) && defined($opt_t))
 {
 	my ($ifh);
-	if ("$opt_f" == "-")
+	if ("$opt_f" eq "-")
 	{
-		$ifh = STDIN
+		DebugString("opt_f($opt_f)\n");
+		$ifh = STDIN;
 	}
 	else
 	{
 		open($ifh,"<$opt_f") || ErrorExit(6,"can not open $opt_f $!");
 	}
-	$ret = DiffDirTime($opt_f,$ifh,STDOUT,@filters);
-	if ($ifh != STDIN)
+	DebugString("opt_f($opt_f) opt_t($opt_t)\n");
+	$ret = DiffDirTime($opt_t,$ifh,STDOUT,@filters);
+	DebugString("ret $ret\n");
+	if (fileno($ifh) != fileno(STDIN))
 	{
 		close($ifh);
 	}
@@ -195,6 +207,7 @@ if (defined($opt_f) && defined($opt_t))
 	{
 		ErrorExit(4,"can not compare with ($opt_f) dir($opt_t)");
 	}
+	
 }
 elsif (defined($opt_t))
 {

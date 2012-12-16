@@ -36,6 +36,15 @@ sub new
 	my ($self) = {};
 
 	bless $self,$class;
+	$self->{_array} = [];
+	$self->{_ended} = 0;
+	$self->{_thrid} = 0;
+	share($self);
+	share($self->{_ended});
+	share($self->{_array});
+	share($self->{_thrid});
+	share($self->{_filters});
+	share($self->{_stored});
 	return $self;
 }
 
@@ -43,11 +52,13 @@ sub SetDir
 {
 	my ($self,$dir)=@_;
 
+	#$self->_DebugString("Set Dir $dir\n");
 	if ($self->{_dir})
 	{
 		undef($self->{_dir});
 	}
 	$self->{_dir} = $dir;
+	#$self->_DebugString("Set Dir ".$self->{_dir}."\n");
 	return $self;
 }
 
@@ -55,10 +66,10 @@ sub SetFilters
 {
 	my ($self,@filters)=@_;
 
-
-	undef($self->{_filters});
-	$self->{_filters} = [@filters];
+	#undef($self->{_filters});
+	share(@filters);
 	share($self->{_filters});
+	$self->{_filters} = shared_clone([@filters]);
 	return $self;
 }
 
@@ -73,13 +84,14 @@ sub __ScanDirCallBack($$$$@)
 	$tfname = $fname;
 	$fname =~ s/^\Q$dir\E[\/\\]+//;
 	$relativefname = $fname;
-
 	{
 		# now to push the file
 		lock($self);
 		$aref = $self->{_array};
 		push(@{$aref},$relatetivefname);
+		$self->_DebugString("push $relativefname to @{$aref}\n");
 	}
+	
 	return 0;
 }
 
@@ -88,10 +100,10 @@ sub __ExitThread
 	threads->exit();
 }
 
-sub __ScanDir($$)
+sub __ScanDir($$@)
 {
-	my ($self,$dir)=@_;
-	my ($fs,$ret,@filters,$aref);
+	my ($self,$dir,@filters)=@_;
+	my ($fs,$ret,$aref);
 
 	$SIG{'KILL'} = \&__ExitThread;
 
@@ -122,8 +134,10 @@ sub StartScanDir
 {
 	my ($self,$dir)=@_;
 	my ($thrid);
+	my (@filters,$aref);
 
-	if (defined($self->{_thrid}) && $self->{_thrid} )
+	
+	if (defined($self->{_thrid}) )
 	{
 		$thrid = $self->{_thrid};
 		# now to wait for thread exit
@@ -132,23 +146,28 @@ sub StartScanDir
 	}
 	undef($self->{_thrid});
 
+	#$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")."\n");
 	# now to share the parameters
 	# 
-	$self->{_array} = [];
-	$self->{_ended} = 0;
-	$self->{_thrid} = 0;
-	share($self->{_ended});
-	share($self->{_array});
-	share($self);
-	share($self->{_thrid});
+	#$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")."\n");
+	#$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")."\n");
 
+	@fitlers=();
+	$aref= $self->{_filters};
+	if (defined($aref) && @{$aref} > 0)
+	{
+		@filters = @{$aref};
+	}
+	$self->{_array}=shared_clone([]);
+	$self->{_ended} = 0;
 	# now to start 
-	$thrid = threads->create(\&__ScanDir,$self,$dir);
+	$thrid = threads->create(\&__ScanDir,$self,$dir,@filters);
 	if (!defined($thrid))
 	{
 		return -3;
 	}
-	$self->{_thrid}=$thrid;
+	share($thrid);
+	$self->{_thrid} = $thrid;
 
 	# now to return ok
 	return 0;	
@@ -170,6 +189,7 @@ try_again:
 	}
 	if (defined($retfile))
 	{
+		$self->_DebugString("retfile $retfile\n");
 		$self->{_curfile} = $retfile;
 		return $retfile;
 	}
@@ -185,20 +205,26 @@ try_again:
 			{
 				$aref = $self->{_array};
 				@retarr = @{$aref};
+				$aref = ();
 			}
-			$isended = $self-{_ended};
+			$isended = $self->{_ended};
 		}
 
-		if ($isended == 0 && @retarr == 0)
+		if (length(@retarr) > 0)
+		{
+			$self->_DebugString("retarr @retarr\n");
+		}
+		if ($isended == 0 && length(@retarr) == 0)
 		{
 			usleep(1000);
 		}		
-	}while($isended == 0 && @retarr == 0);
+	}while($isended == 0 && length(@retarr) == 0);
 
 	
-	$self->{_stored} = [@retarr];
-	if (@retarr > 0)
+	$self->{_stored} = shared_clone([@retarr]);
+	if (length(@retarr) > 0)
 	{
+		$self->_DebugString("length ".length(@retarr)."\n");
 		goto try_again;
 	}
 	# nothing to do ,so return null
@@ -210,7 +236,7 @@ sub _GetCurFile
 {
 	my ($self) = @_;
 	# we call get the next file ,because in the first ,we not defined the $self->{_curfile}
-	return defined($self->{_curfile}) ? $self->{_curfile} : $self->__GetNextFile();
+	return defined($self->{_curfile}) ? $self->{_curfile} : $self->_GetNextFile();
 }
 
 sub _GetTime
@@ -242,11 +268,13 @@ sub GetCmpString
 	my ($omtime) = shift @_;
 	my ($str,$curmtime,$curfile,$cont);
 
-	if (!defined($self->{_dir}) || !defined($self->{_array}))
+	if (!defined($self->{_dir}) )
 	{
 		my ($p,$f,$l,$F) = caller(0);
+		$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")." array ".(defined($self->{_array}))."\n");
 		die "[$p][$f][$F]$l: Not Init the dir or array\n";
 	}
+	$self->_DebugString(" CmpString file ".(defined($file) ? $file: "null")." omtime ".(defined($omtime) ? $omtime : "null")."\n");
 
 	undef($str);
 	$cont=0;
@@ -257,7 +285,7 @@ sub GetCmpString
 		$curfile = $self->_GetCurFile();
 		if (defined($curfile))
 		{
-			# 
+			$self->_DebugString("curfile $curfile\n");
 			if ( "$curfile" lt "$file" )
 			{
 				$str = "+ $curfile\n";
@@ -410,6 +438,7 @@ sub FormTime
 
 sub DESTROY
 {
+	my ($self)=@_;
 	if (defined($self->{_thrid}))
 	{
 		my ($thrid) = $self->{_thrid};

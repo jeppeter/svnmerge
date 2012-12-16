@@ -6,8 +6,10 @@ use Time::HiRes qw (usleep);
 
 my (@array,$arrayref);
 my (%hashb,$href);
+my ($thra,$thrb);
 
-
+#share($thra);
+#share($thrb);
 share(@array);
 share($arrayref);
 share(%hashb);
@@ -79,7 +81,6 @@ sub BThr(@)
 }
 
 
-my ($thra,$thrb);
 
 $arrayref= \@array;
 $href = \%hashb;
@@ -87,7 +88,8 @@ $href->{_array} = $arrayref;
 $href->{_ended} = 0;
 $thra = threads->create(\&AThr,$href);
 $thrb = threads->create(\&BThr,$href);
-
+share($thra);
+share($thrb);
 $thrb->join();
 $thra->kill('KILL');
 $thra->join();
