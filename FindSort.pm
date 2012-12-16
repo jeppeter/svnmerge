@@ -51,6 +51,19 @@ sub GetErrorMsg($)
            ;
 }
 
+sub SetDir
+{
+	my ($self,$dir)=@_;
+
+	if ($self->{_dir})
+	{
+		undef($self->{_dir});
+	}
+	$self->{_dir} = $dir;
+	return $self;
+}
+
+
 sub ScanDirs($$)
 {
     my($self,$dir)=@_;

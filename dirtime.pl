@@ -1,5 +1,6 @@
 #! perl
 
+use Getopt::Std;
 use vars qw ($opt_h $opt_f $opt_t $opt_v $opt_V);
 use DirTime;
 
@@ -149,11 +150,11 @@ sub Usage
 	}
 
 	print $fh "$0 [OPTIONS] [FILTERS]\n";
-	print $fh "-h      :display this help message\n";
-	print $fh "-v      :verbose mode\n";
-	print $fh "-f file :to make the file - for stdin\n";
-	print $fh "-t dir  : directory to specify\n";
-	print $fh "-V      : display version\n";
+	print $fh "\t-h      :display this help message\n";
+	print $fh "\t-v      :verbose mode\n";
+	print $fh "\t-f file :to make the file - for stdin\n";
+	print $fh "\t-t dir  : directory to specify\n";
+	print $fh "\t-V      : display version\n";
 
 	exit ($exitcode);
 }

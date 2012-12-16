@@ -5,7 +5,7 @@ package DirTime ;
 use threads;
 use threads::shared;
 use Time::HiRes qw(usleep);
-
+use FindSort;
 
 sub _DebugString
 {
@@ -93,7 +93,7 @@ sub __ScanDir($$)
 	my ($self,$dir)=@_;
 	my ($fs,$ret,@filters,$aref);
 
-	$self->SIG{'KILL'} = \&__ExitThread;
+	$SIG{'KILL'} = \&__ExitThread;
 
 	{
 		lock($self);
@@ -284,7 +284,7 @@ sub GetCmpString
 				{
 					# it means current file is old so do not use any one
 				}
-				else if ( $curmtime > $omtime )
+				elsif ( $curmtime > $omtime )
 				{
 					# it means current file is young
 					$str = "Y $curfile\n";
@@ -411,7 +411,7 @@ sub DESTROY
 	if (defined($self->{_thrid}))
 	{
 		my ($thrid) = $self->{_thrid};
-		$thrid->kill{'KILL'};
+		$thrid->kill('KILL');
 		$thrid->join();
 		undef($self->{_thrid});
 	}

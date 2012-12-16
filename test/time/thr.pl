@@ -18,8 +18,9 @@ sub AThr(@)
 	my ($href)=@_;
 	my ($aref);
 	my ($i);
+	$SIG{'KILL'} = sub{print "In Thread exit\n"; threads->exit(3)};
 
-	for ($i=0;$i< 20;$i++)
+	for ($i=0;1;$i++)
 	{
 		{
 			lock($href);
@@ -44,7 +45,7 @@ sub BThr(@)
 	my (@barray,$isended);
 	my ($aref);
 
-	for ($i=0;$i< 20;$i++)
+	for ($i=0;$i < 20;$i++)
 	{
 		usleep(1000);
 		undef($get);
@@ -71,6 +72,8 @@ sub BThr(@)
 		$get = $href->{_ended};		
 	}
 
+	
+
 	print "In B ended $get\n";
 	return 0;
 }
@@ -85,5 +88,6 @@ $href->{_ended} = 0;
 $thra = threads->create(\&AThr,$href);
 $thrb = threads->create(\&BThr,$href);
 
-$thra->join();
 $thrb->join();
+$thra->kill('KILL');
+$thra->join();
