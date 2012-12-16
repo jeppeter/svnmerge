@@ -123,22 +123,24 @@ sub StartScanDir
 	my ($self,$dir)=@_;
 	my ($thrid);
 
-	if (defined($self->{_thrid}))
+	if (defined($self->{_thrid}) && $self->{_thrid} )
 	{
 		$thrid = $self->{_thrid};
 		# now to wait for thread exit
 		$thrid->{'KILL'};
 		$thrid->join();
-		undef($self->{_thrid});
 	}
+	undef($self->{_thrid});
 
 	# now to share the parameters
 	# 
 	$self->{_array} = [];
 	$self->{_ended} = 0;
+	$self->{_thrid} = 0;
 	share($self->{_ended});
 	share($self->{_array});
 	share($self);
+	share($self->{_thrid});
 
 	# now to start 
 	$thrid = threads->create(\&__ScanDir,$self,$dir);
@@ -146,7 +148,7 @@ sub StartScanDir
 	{
 		return -3;
 	}
-	$self->{_thrid} = $thrid;
+	$self->{_thrid}=$thrid;
 
 	# now to return ok
 	return 0;	
