@@ -1,6 +1,7 @@
 #! perl
 
-use vars qw ($opt_h $opt_f $opt_s $opt_v $opt_V);
+use vars qw ($opt_h $opt_f $opt_t $opt_v $opt_V);
+use DirTime;
 
 sub ErrorExit
 {
@@ -131,4 +132,53 @@ sub DiffDirTime($$$@)
 	return 0;
 }
 
+sub Usage
+{
+	my ($exitcode)= shift @_;
+	my ($msg) = shift @_;
+	my ($fh) = STDERR;
+
+	if ($exitcode == 0)
+	{
+		$fh = STDOUT;
+	}
+
+	if (defined($msg))
+	{
+		print $fh "$msg\n";
+	}
+
+	print $fh "$0 [OPTIONS] [FILTERS]\n";
+	print $fh "-h      :display this help message\n";
+	print $fh "-v      :verbose mode\n";
+	print $fh "-f file :to make the file - for stdin\n";
+	print $fh "-t dir  : directory to specify\n";
+	print $fh "-V      : display version\n";
+
+	exit ($exitcode);
+}
+
+getopts("hf:t:vV");
+
+if (defined($opt_h))
+{
+	Usage(0);
+}
+
+if (defined($opt_V))
+{
+	print STDOUT "$0 version 0.0.1\n";
+	exit (0);
+}
+
+if (defined($opt_f) && defined($opt_t))
+{
+}
+elsif (defined($opt_t))
+{
+}
+else
+{
+	Usage(3,"must specify the directory used -t");
+}
 
