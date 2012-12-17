@@ -6,6 +6,7 @@ use Random;
 use File::Touch;
 use Cwd qw( abs_path getcwd);
 use File::Basename;
+use File::Path qw(make_path remove_tree);
 
 sub new
 {
@@ -15,6 +16,18 @@ sub new
     $self->{_RandomClass}= Random->new();
     return $self;
 }
+
+sub _DebugString($)
+{
+    my($self,$msg)=@_;
+    my($pkg,$fn,$ln,$s)=caller(0);
+
+    #if(defined($st_Verbose)&&$st_Verbose)
+    {
+        printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
+    }
+}
+
 
 sub SetCallBack($$@)
 {
@@ -54,6 +67,7 @@ sub MakeRandomdirs($$$)
 		@callargs = @{$self->{_callargs}};
 	}
 
+
 	# now to read the absolute dir
 	$absdir = abs_path($dir);
 	$rand = $self->{_RandomClass};
@@ -81,15 +95,15 @@ sub MakeRandomdirs($$$)
 
 		$fn = "$absdir/$p";
 
-		if (len($f) > 200)
+		if (length($f) > 200)
 		{
 			# we can not make file in more 200 characters
 			next;
 		}
 
 		# now we should make directory
-		$d = dirname($f);
-		$f = basename($f);
+		$d = dirname($fn);
+		$f = basename($fn);
 
 		if (  -e $d && ! -d $d)
 		{
