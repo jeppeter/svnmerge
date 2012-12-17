@@ -413,15 +413,6 @@ sub GetCmpString
 }
 
 
-sub TraceFunc()
-{
-	use Devel::StackTrace;
-	my ($pt,$str);
-	$pt = Devel::StackTrace->new();
-	$str = $pt->as_string;
-	print STDERR "$str";
-	
-}
 
 sub DESTROY
 {
