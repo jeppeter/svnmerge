@@ -143,7 +143,6 @@ sub DiffDirTime($$$@)
 	$dt->DESTROY();
 	undef($dt);
 	print $outfh "TE $dir\n"; 
-	DebugString("\n");
 
 	return 0;
 }
@@ -203,7 +202,6 @@ if (defined($opt_f) && defined($opt_t))
 	}
 	#DebugString("opt_f($opt_f) opt_t($opt_t)\n");
 	$ret = DiffDirTime($opt_t,$ifh,STDOUT,@filters);
-	DebugString("ret $ret\n");
 	if (fileno($ifh) != fileno(STDIN))
 	{
 		close($ifh);

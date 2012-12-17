@@ -34,6 +34,7 @@ sub new
 	share($self->{_array});
 	share($self->{_thrid});
 	share($self->{_stored});
+	$self->_DebugString("self $self\n");
 	return $self;	
 }
 sub ThrA
@@ -49,6 +50,7 @@ sub ThrA
 	for ($i=0;1;$i++)
 	{
 		my ($name);
+		$self->_DebugString("self $self\n");
 		$name = $ra->GetRandomFileName(20);
 		{
 			lock($self);
@@ -83,6 +85,7 @@ sub ThrB
 	{
 		usleep(5000);
 		@retarr = ();
+		$self->_DebugString("self $self\n");
 		{
 			lock($self);
 			$aref = $self->{_array};

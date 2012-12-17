@@ -138,9 +138,7 @@ sub __ScanDir($$@)
 		$href->{_ended} = 1;
 	}
 
-	$self->_DebugString("thread ret $ret\n");
 	threads->exit($ret);
-	$self->_DebugString("\n");
 }
 
 sub StartScanDir
@@ -176,7 +174,6 @@ sub StartScanDir
 		return -3;
 	}
 	$href->{_thrid} = shared_clone($thrid);
-	$self->_DebugString(" thrid ".$href->{_thrid}."\n");
 
 	# now to return ok
 	return 0;	
@@ -413,10 +410,20 @@ sub GetCmpString
 }
 
 
+sub TraceFunc()
+{
+	use Devel::StackTrace;
+	my ($pt,$str);
+	$pt = Devel::StackTrace->new();
+	$str = $pt->as_string;
+	print STDERR "$str";
+	
+}
+
 sub DESTROY
 {
 	my ($self)=@_;
-	my ($href);
+	my ($href,$ret);
 	if (defined($self->{_hash}))
 	{
 		$href = $self->{_hash};
@@ -424,27 +431,22 @@ sub DESTROY
 	if (defined($href->{_thrid}))
 	{
 		my ($thrid) = $href->{_thrid};
-		$self->_DebugString("thrid $thrid\n");
-		$thrid->kill('KILL');
-		$self->_DebugString("\n");
-		$thrid->join();
-		$self->_DebugString("\n");
+		#$thrid->kill('KILL');
+		$ret =$thrid->join();
 		undef($href->{_thrid});
 		undef($thrid);
-		$self->_DebugString("\n");
 	}
-	$self->_DebugString("\n");
 	if (defined($self->{_stored}))
 	{
 		undef($self->{_stored});
 	}
-	$self->_DebugString("\n");
 	if(defined($href->{_array}))
 	{
 		undef($href->{_array});
 	}
-	$self->_DebugString("\n");
 }
+
+
 
 1;
 
