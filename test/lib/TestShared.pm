@@ -4,6 +4,7 @@ package TestShared;
 use threads;
 use threads::shared;
 use Time::HiRes qw (usleep);
+use Random;
 
 sub _DebugString
 {
@@ -39,15 +40,21 @@ sub ThrA
 {
 	my ($self)=@_;
 	my ($i,$aref);
+	my ($ra);
 
 	$SIG{'KILL'} = \&__ExitThread;
+
+	$ra = Random->new();
+	
 	for ($i=0;1;$i++)
 	{
+		my ($name);
+		$name = $ra->GetRandomFileName(20);
 		{
 			lock($self);
 			$aref = $self->{_array};
-			push(@{$aref},$i);
-			$self->_DebugString("A push($i) $i $aref @{$aref}\n");
+			push(@{$aref},$name);
+			#$self->_DebugString("push($i) $name $aref ".scalar(@{$aref})." (@{$aref})\n");
 		}
 
 		usleep(1000);
@@ -63,6 +70,7 @@ sub ThrB
 	my ($thrid);
 
 	$self->{_stored} = shared_clone([]);
+	$self->{_array} = shared_clone([]);
 	$thrid = threads->create(\&ThrA,$self);
 	if (!defined($thrid))
 	{
@@ -70,9 +78,10 @@ sub ThrB
 		return -3;
 	}
 	$self->{_thrid} = shared_clone($thrid);
+	$self->_DebugString("thrid ".$self->{_thrid}."\n");
 	for ($i=0;$i<20;$i++)
 	{
-		usleep(100000);
+		usleep(5000);
 		@retarr = ();
 		{
 			lock($self);
@@ -81,18 +90,26 @@ sub ThrB
 			$self->{_array} = shared_clone([]);
 		}
 
-		if ($#retarr > 0)
+		if (scalar(@retarr) > 0)
 		{
 			$aref = $self->{_stored};
-			$self->_DebugString("array size $#retarr @retarr stored @{$aref}\n");
+			#$self->_DebugString("pop($i) ".scalar(@retarr)." (@retarr) stored (@{$aref})\n");
+		}
+		else
+		{
+			#$self->_DebugString("pop($i) null\n");
 		}
 
 		$self->{_stored} = shared_clone([@retarr]);
 	}
 
-	$self->{_thrid}->kill('KILL');
-	$self->{_thrid}->join();
+	$self->_DebugString("thrid ".$self->{_thrid}."\n");
+	$thrid = $self->{_thrid};
+	$thrid->kill('KILL');
+	$thrid->join();
+	undef($thrid);
 	undef($self->{_thrid});
+	$self->_DebugString("\n");
 	return 0;	
 }
 

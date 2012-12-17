@@ -88,6 +88,7 @@ sub DiffDirTime($$$@)
 	undef($file);
 	undef($ftime);
 	$lineno = 0;
+	print $outfh "TS $dir\n";
 	while(<$infh>)
 	{
 		my ($line)=$_;
@@ -133,13 +134,16 @@ sub DiffDirTime($$$@)
 			undef($ftime);
 		}
 	}
-
 	do
 	{
 		($str,$cont)=$dt->GetCmpString(undef,undef);
 		print $outfh "$str";
 	}while($cont);
+	
 	$dt->DESTROY();
+	undef($dt);
+	print $outfh "TE $dir\n"; 
+	DebugString("\n");
 
 	return 0;
 }
@@ -197,7 +201,7 @@ if (defined($opt_f) && defined($opt_t))
 	{
 		open($ifh,"<$opt_f") || ErrorExit(6,"can not open $opt_f $!");
 	}
-	DebugString("opt_f($opt_f) opt_t($opt_t)\n");
+	#DebugString("opt_f($opt_f) opt_t($opt_t)\n");
 	$ret = DiffDirTime($opt_t,$ifh,STDOUT,@filters);
 	DebugString("ret $ret\n");
 	if (fileno($ifh) != fileno(STDIN))

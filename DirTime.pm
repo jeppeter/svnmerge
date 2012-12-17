@@ -34,29 +34,38 @@ sub new
 {
 	my ($class) =@_;
 	my ($self) = shared_clone({});
+	my ($href);
 
 	bless $self,$class;
-	$self->{_array} = shared_clone([]);
-	$self->{_ended} = shared_clone(0);
-	$self->{_thrid} = shared_clone(0);
-	share($self->{_ended});
-	share($self->{_array});
-	share($self->{_thrid});
-	share($self->{_filters});
-	share($self->{_stored});
+	share($self->{_hash});
+	$self->{_hash} = shared_clone({});
+	$href = $self->{_hash};
+	$href->{_array} = shared_clone([]);
+	$href->{_filters} = shared_clone([]);
+	$href->{_ended} = 0;
+	$href->{_thrid} = 0;
+	$href->{_dir} = "";
+	share($href->{_array});
+	share($href->{_filters});
+	share($href->{_ended});
+	share($href->{_thrid});
+	share($href->{_dir});
+	$self->{_stored} = shared_clone([]);
 	return $self;
 }
 
 sub SetDir
 {
 	my ($self,$dir)=@_;
+	my ($href);
 
+	$href = $self->{_hash};
 	#$self->_DebugString("Set Dir $dir\n");
-	if ($self->{_dir})
+	if (defined($href->{_dir}))
 	{
-		undef($self->{_dir});
+		undef($href->{_dir});
 	}
-	$self->{_dir} = $dir;
+	$href->{_dir} = shared_clone($dir);
 	#$self->_DebugString("Set Dir ".$self->{_dir}."\n");
 	return $self;
 }
@@ -64,11 +73,11 @@ sub SetDir
 sub SetFilters
 {
 	my ($self,@filters)=@_;
+	my ($href);
 
 	#undef($self->{_filters});
-	share(@filters);
-	share($self->{_filters});
-	$self->{_filters} = shared_clone([@filters]);
+	$href = $self->{_hash};
+	$href->{_filters} = shared_clone([@filters]);
 	return $self;
 }
 
@@ -76,19 +85,21 @@ sub __ScanDirCallBack($$$$@)
 {
 	my ($dir,$fname,$curd,$pname,@args)=@_;
 	my ($self)=@args;
+	my ($href);
 	my ($aref);
 	my ($relativefname,$tfname);
 	my (@sts,$mtime);
 
+	$href = $self->{_hash};
 	$tfname = $fname;
 	$fname =~ s/^\Q$dir\E[\/\\]+//;
 	$relativefname = $fname;
 	{
 		# now to push the file
-		lock($self);
-		$aref = $self->{_array};
-		push(@{$aref},$relatetivefname);
-		$self->_DebugString("push $relativefname to $aref ".scalar(@{$aref})." #@{$aref}#\n");
+		lock($href);
+		$aref = $href->{_array};
+		push(@{$aref},$relativefname);
+		#$self->_DebugString("push $relativefname to $aref ".scalar(@{$aref})." reftype ".ref($aref)." #@{$aref}#\n");
 	}
 	
 	return 0;
@@ -96,37 +107,40 @@ sub __ScanDirCallBack($$$$@)
 
 sub __ExitThread
 {
-	threads->exit();
+	threads->exit(3);
 }
 
 sub __ScanDir($$@)
 {
 	my ($self,$dir,@filters)=@_;
-	my ($fs,$ret,$aref);
+	my ($fs,$ret,$aref,$href);
 
 	$SIG{'KILL'} = \&__ExitThread;
+	$href = $self->{_hash};
 
 	{
-		lock($self);
-		$self->{_ended} = 0;
+		lock($href);
+		$href->{_ended} = 0;
 	}
 	$fs = FindSort->new();
 	$fs->SetCallBack(\&__ScanDirCallBack,$self);
-	if (defined($self->{_filters}))
+	if (defined($href->{_filters}))
 	{
-		lock($self);
-		$aref = $self->{_filters};
+		lock($href);
+		$aref = $href->{_filters};
 		@filters = @{$aref};
 		$fs->SetFilters(@filters);
 	}
 	$ret = $fs->ScanDirs($dir);
 
 	{
-		lock($self);
-		$self->{_ended} = 1;
+		lock($href);
+		$href->{_ended} = 1;
 	}
 
-	return $ret;
+	$self->_DebugString("thread ret $ret\n");
+	threads->exit($ret);
+	$self->_DebugString("\n");
 }
 
 sub StartScanDir
@@ -134,39 +148,35 @@ sub StartScanDir
 	my ($self,$dir)=@_;
 	my ($thrid);
 	my (@filters,$aref);
+	my ($href);
 
-	
-	if (defined($self->{_thrid}) )
+	$href = $self->{_hash};
+	if (defined($href->{_thrid}) && $href->{_thrid} )
 	{
-		$thrid = $self->{_thrid};
+		$thrid = $href->{_thrid};
 		# now to wait for thread exit
 		$thrid->{'KILL'};
 		$thrid->join();
 	}
-	undef($self->{_thrid});
+	undef($href->{_thrid});
 
-	#$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")."\n");
-	# now to share the parameters
-	# 
-	#$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")."\n");
-	#$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")."\n");
 
 	@fitlers=();
-	$aref= $self->{_filters};
-	if (defined($aref) && @{$aref} > 0)
+	$aref= $href->{_filters};
+	if (defined($aref) && scalar(@{$aref}) > 0)
 	{
 		@filters = @{$aref};
 	}
-	$self->{_array}=shared_clone([]);
-	$self->{_ended} = 0;
+	$href->{_array}=shared_clone([]);
+	$href->{_ended} = 0;
 	# now to start 
 	$thrid = threads->create(\&__ScanDir,$self,$dir,@filters);
 	if (!defined($thrid))
 	{
 		return -3;
 	}
-	share($thrid);
-	$self->{_thrid} = $thrid;
+	$href->{_thrid} = shared_clone($thrid);
+	$self->_DebugString(" thrid ".$href->{_thrid}."\n");
 
 	# now to return ok
 	return 0;	
@@ -177,19 +187,21 @@ sub _GetNextFile($)
 	my ($self)=@_;
 	my (@retarr,$retfile);
 	my ($isended,$aref);
+	my ($href);
 
+	$href = $self->{_hash};
 try_again:
 	undef($retfile);
 	undef($self->{_curfile});
 	if (defined({$self->{_stored}}))
 	{
 		$aref = $self->{_stored} ;
-		$self->_DebugString("pop array @{$aref}#$aref#(".scalar(@{$aref}).")\n");
+		#$self->_DebugString("pop array @{$aref}#$aref#(".scalar(@{$aref}).")\n");
 		$retfile = shift(@{$aref});
 	}
 	if (defined($retfile))
 	{
-		$self->_DebugString("shift ($retfile)\n");
+		#$self->_DebugString("shift ($retfile)\n");
 		$self->{_curfile} = $retfile;
 		return $retfile;
 	}
@@ -200,19 +212,19 @@ try_again:
 	do	
 	{
 		{
-			lock($self);
-			if (defined($self->{_array}))
+			lock($href);
+			if (defined($href->{_array}))
 			{
-				$aref = $self->{_array};
+				$aref = $href->{_array};
 				@retarr = @{$aref};
-				$self->{_array}=shared_clone([]);
+				$href->{_array}=shared_clone([]);
 			}
-			$isended = $self->{_ended};
+			$isended = $href->{_ended};
 		}
 
 		if (scalar(@retarr) > 0)
 		{
-			$self->_DebugString("retarr @retarr\n");
+			#$self->_DebugString("retarr @retarr\n");
 		}
 		if ($isended == 0 && scalar(@retarr) == 0)
 		{
@@ -223,10 +235,9 @@ try_again:
 	
 	$self->{_stored} = shared_clone([@retarr]);
 	$aref = $self->{_stored};
-	$self->_DebugString("stored @{$aref}\n");
-	if ($#retarr > 0)
+	#$self->_DebugString("stored (@{$aref})".scalar(@{$aref})."\n");
+	if (scalar(@retarr) > 0)
 	{
-		$self->_DebugString("length $#retarr(@retarr)\n");
 		goto try_again;
 	}
 	# nothing to do ,so return null
@@ -269,14 +280,16 @@ sub GetCmpString
 	my ($file) = shift @_;
 	my ($omtime) = shift @_;
 	my ($str,$curmtime,$curfile,$cont);
+	my ($href);
 
-	if (!defined($self->{_dir}) )
+	$href = $self->{_hash};
+	if (!defined($href->{_dir}) )
 	{
 		my ($p,$f,$l,$F) = caller(0);
-		$self->_DebugString("dir ".(defined($self->{_dir}) ? $self->{_dir} : "null")." \n");
+		$self->_DebugString("dir ".(defined($href->{_dir}) ? $href->{_dir} : "null")." \n");
 		die "[$p][$f][$F]$l: Not Init the dir or array\n";
 	}
-	$self->_DebugString(" CmpString file ".(defined($file) ? $file: "null")." omtime ".(defined($omtime) ? $omtime : "null")."\n");
+	#$self->_DebugString(" CmpString file ".(defined($file) ? $file: "null")." omtime ".(defined($omtime) ? $omtime : "null")."\n");
 
 	undef($str);
 	$cont=0;
@@ -287,7 +300,7 @@ sub GetCmpString
 		$curfile = $self->_GetCurFile();
 		if (defined($curfile))
 		{
-			$self->_DebugString("curfile $curfile\n");
+			#$self->_DebugString("curfile $curfile\n");
 			if ( "$curfile" lt "$file" )
 			{
 				$str = "+ $curfile\n";
@@ -399,64 +412,38 @@ sub GetCmpString
 	return ($str,$cont);
 }
 
-sub FormTime
-{
-	my ($self) =@_;
-	my ($file,$mtime);
-	my ($str,$cont,$fname);
-
-	if (!defined($self->{_dir}) || !defined($self->{_array}))
-	{
-		my ($p,$f,$l,$F) = caller(0);
-		die "[$p][$f][$F]$l: Not Init the dir or array\n";
-	}
-
-	$file = $self->_GetCurFile();
-	$cont = 0;
-	if (defined($file))
-	{
-		$fname = "$self->{_dir}"."/$file";
-		if ( -f $fname )
-		{
-			$mtime = $self->_GetTime($file);
-			$str = "F $file\n";
-			$str .= "T $mtime\n";
-		}
-		elsif ( -d $fname )
-		{
-			if (length($file))
-			{
-				$str = "F $file\n";
-			}
-		}
-		$file = $self->_GetNextFile();
-		if (defined($file))
-		{
-			$cont = 1;
-		}
-	}
-	return ($str,$cont);
-}
 
 sub DESTROY
 {
 	my ($self)=@_;
-	if (defined($self->{_thrid}))
+	my ($href);
+	if (defined($self->{_hash}))
 	{
-		my ($thrid) = $self->{_thrid};
-		$thrid->kill('KILL');
-		$thrid->join();
-		undef($self->{_thrid});
+		$href = $self->{_hash};
 	}
-
+	if (defined($href->{_thrid}))
+	{
+		my ($thrid) = $href->{_thrid};
+		$self->_DebugString("thrid $thrid\n");
+		$thrid->kill('KILL');
+		$self->_DebugString("\n");
+		$thrid->join();
+		$self->_DebugString("\n");
+		undef($href->{_thrid});
+		undef($thrid);
+		$self->_DebugString("\n");
+	}
+	$self->_DebugString("\n");
 	if (defined($self->{_stored}))
 	{
 		undef($self->{_stored});
 	}
-	if(defined($self->{_array}))
+	$self->_DebugString("\n");
+	if(defined($href->{_array}))
 	{
-		undef($self->{_array});
+		undef($href->{_array});
 	}
+	$self->_DebugString("\n");
 }
 
 1;

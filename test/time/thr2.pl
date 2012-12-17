@@ -34,3 +34,5 @@ my ($ts);
 $ts = TestShared->new();
 $ts->ThrB();
 
+print "all over\n";
+
