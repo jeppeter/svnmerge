@@ -254,11 +254,13 @@ sub _GetTime
     my ($self,$file)=@_;
     my ($filename);
     my ($mtime,@attr);
+    my ($href);
 
 	# if not set ,we use 0 for default
     $mtime = "0";
 
-    $filename = "$self->{_dir}"."/$file";
+	$href = $self->{_hash};
+    $filename = "$href->{_dir}"."/$file";
     if( -f $filename )
     {
     	@attr = stat($filename);
@@ -322,6 +324,7 @@ sub GetCmpString
 			{
 				# get next one
 				$curmtime = $self->_GetTime($curfile);
+				#$self->_DebugString("$curfile $omtime <=> $curmtime\n");
 				if ( $curmtime < $omtime )
 				{
 					# it means current file is old so do not use any one
