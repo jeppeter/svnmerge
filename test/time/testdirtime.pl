@@ -13,6 +13,7 @@
 
 use Cwd qw( abs_path getcwd);
 use File::Basename;
+use Text::Diff;
 
 
 sub GetScriptDir()
@@ -62,7 +63,8 @@ BEGIN
 	
 }
 
-use Random;
+use RandDir;
+
 
 sub Usage($)
 {
@@ -109,13 +111,6 @@ if ( ! -d $dir )
 sub SetNewRandom($$$$$$$)
 {
 	my ($rc,$dira,$dirb,$equals,$notequals)=@_;
-	my ($isdir,$isamtime);
-	my ($cona,$conb,$i,$j);
-	my ($curf,$curaf,$curbf,$da,$db);
-	my ($amtime,$bmtime,@fst,$smtime);
-	my (%afiles,%bfiles);
-	my ($outstr);
-	my (@asortfiles,@bsortfiles);
 
 	# now first to make the things ok
 	for ($i=0;$i<$equals ; $i++)
@@ -450,7 +445,8 @@ for ($i=0;$i < $times;$i++)
 {
 	my ($foutstr,$eoutstr);
 	my ($rc);
-	my ($cmd,$fh);
+	my ($cmd,$fh,%afiles,%bfiles);
+	my (@sorta,@sortb);
 	# first to remove the dir
 	remove_tree($adir);
 	remove_tree($bdir);
@@ -459,10 +455,22 @@ for ($i=0;$i < $times;$i++)
 	make_path($bdir);
 
 	$rc = TA->new();
+	@afiles=();
+	@bfiles=();
 	# now to make the 
-	$foutstr = SetNewRandom($rc,$adir,$bdir,100,20);
+	$ret = SetNewRandom($rc,$adir,100,20,\%afiles);
+	if ($ret < 0)
+	{
+		ErrorExit(4,"can not set randoma($i) $adir");
+	}
+
+	$ret = SetNewRandom($rc,$bdir,100,20,\%bfiles);
+	if ($ret < 0)
+	{
+		ErrorExit(4,"can not set randomb($i) $bdir");
+	}
 		
-	$cmd = "perl ../../dirtime.pl $adir | perl ../../dirtime.pl -f - $bdir";
+	$cmd = "perl ../../dirtime.pl -t $adir | perl ../../dirtime.pl -f - -t $bdir";
 
 	open($fh,"$cmd |") || ErrorExit(4,"can not runcmd $cmd");
 
