@@ -108,9 +108,9 @@ if ( ! -d $dir )
 	ErrorExit(3,"$dir not directory");
 }
 
-sub SetNewRandom($$$$$$$)
+sub SetNewRandom($$$$)
 {
-	my ($rc,$dira,$dirb,$equals,$notequals)=@_;
+	my ($dir,$equals,$equaltime,$notequals,$notequaltime,$href)=@_;
 
 	# now first to make the things ok
 	for ($i=0;$i<$equals ; $i++)
@@ -372,41 +372,103 @@ sub SetNewRandom($$$$$$$)
 }
 
 
-my (@filters,@rawfiles);
 
-sub DirFilter
+
+
+
+sub MakeCompareTest($$$$)
 {
-    my ($curfile)=$_;
-    my ($ret);
-    $ret = 0;
-    foreach (@filters)
-    {
-        my($curfilter)=$_;
-        if ($File::Find::name =~ m/$curfilter/)
-        {
-            $ret = 1;
-            last;
-        }
-    }
-    if ($ret == 0)
-    {
-        if ( (-f $File::Find::name) || ( -d $File::Find::name ))
-        {
-            push(@rawfiles,$File::Find::name);
-        }
-    }
-}
+	my ($adir,$bdir,$equals,$notequals)=@_;
+	my ($foutstr);
+	my (%afiles,%bfiles);
+	my (@asort,@bsort);
+	my ($rc);
+
+	undef(%afiles);
+	undef(%bfiles);
+	@asort = ();
+	@bsort = ();
+	%afiles = {};
+	%bfiles = {};
 
 
-sub CallDirTimePm($$@)
-{
-	my ($adir,$bdir,@_filters)=@_;
-	my (@asorfiles,@bsorfiles);
+	$ret = SetNewRandom($adir,$equals,$notequals,\%afiles);
+	if ($ret < 0)
+	{
+		ErrorExit(4,"can not create randoma $adir");
+	}
 
-	undef (@rawfiles);
+	$ret = SetNewRandom($bdir,$equals,$notequals,\%bfiles);
+	if ($ret < 0)
+	{
+		ErrorExit(4, "can not create randomb $bdir");
+	}
+
+	@asort = sort( keys %afiles);
+	@bsort = sort( keys %bfiles);
+
+	$foutstr = "TS $bdir\n";
+	for ($i=0,$j=0;$i<@asort && $j < @bsort;)
+	{
+		my ($af,$bf);
+		$af = $asort[$i];
+		$bf = $bsort[$j];
+		if ("$af" lt "$bf" )
+		{
+			$foutstr .= "- $af\n";
+			$i ++;
+		}
+		elsif ( "$af" gt "$bf")
+		{
+			$foutstr .= "+ $bf\n";
+			$j ++;
+		}
+		else		
+		{
+			my ($atime,$btime);
+			$atime = $afiles{$af};
+			$btime = $bfiles{$bf};
+			if ( $atime == 0 || 
+				$btime == 0)
+				{
+					# nothing to do
+				}
+				elsif ($atime < $btime)
+				{
+					$foutstr .= "Y $bf\n";
+				}
+				elsif ($atime > $btime)
+				{
+					# nothing to do
+				}
+				else
+				{
+					# it is ok
+				}
+				$i ++;
+				$j ++;
+		}
+	}
+
+	for ( ;$i<@asort;$i++)
+	{
+		my ($af);
+		$af = $asort[$i];
+		$foutstr .= "- $af\n";
+	}
+
+	for (;$j<@bsort;$j++)
+	{
+		my ($bf);
+		$bf = $bsort[$j];
+		$foutstr .= "+ $bf\n";
+	}
+
+	$foutstr .= "TE $bdir\n";
+
+	return $foutstr;
 	
 }
-
 
 sub Usage()
 {
@@ -454,21 +516,7 @@ for ($i=0;$i < $times;$i++)
 	make_path($adir);
 	make_path($bdir);
 
-	$rc = TA->new();
-	@afiles=();
-	@bfiles=();
-	# now to make the 
-	$ret = SetNewRandom($rc,$adir,100,20,\%afiles);
-	if ($ret < 0)
-	{
-		ErrorExit(4,"can not set randoma($i) $adir");
-	}
-
-	$ret = SetNewRandom($rc,$bdir,100,20,\%bfiles);
-	if ($ret < 0)
-	{
-		ErrorExit(4,"can not set randomb($i) $bdir");
-	}
+	$foutstr = MakeCompareTest($adir,$bdir,100,20);
 		
 	$cmd = "perl ../../dirtime.pl -t $adir | perl ../../dirtime.pl -f - -t $bdir";
 
