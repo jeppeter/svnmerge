@@ -41,26 +41,22 @@ if (defined($opt_h))
 my (@filters) = $#ARGV >= 0 ?  @ARGV : ();
 my ($cmd,$ret);
 
-$cmd = " perl dirsha.pl \"$opt_d\" ";
+$cmd = " perl dirtime.pl  -t \"$opt_d\" ";
 
 if ( $#filters >= 0 )
 {
 	$cmd .= join(" ",@filters);
 }
 
-if (defined($opt_v))
-{
-	$cmd .= " | perl dirsha.pl -v -f - \"$opt_s\" ";
-}
-else
-{
-	$cmd .= " | perl dirsha.pl -f - \"$opt_s\" ";
-}
+$cmd .= " | perl dirtime.pl -f -  -t \"$opt_s\" ";
 
 if ( $#filters >= 0)
 {
 	$cmd .= join(" ",@filters);
 }
+
+$cmd .= " | perl dirtime.pl -s \"$opt_d\" ";
+$cmd .= " | perl dirtime.pl -d \"$opt_s\" ";
 
 $ret = system($cmd);
 DebugString("run cmd $cmd ".($ret == 0 ? "Succ" : "Failed $ret")."\n");

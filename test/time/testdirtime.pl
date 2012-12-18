@@ -10,7 +10,7 @@
 #################################
 
 
-
+use strict;
 use Cwd qw( abs_path getcwd);
 use File::Basename;
 use Text::Diff;
@@ -70,11 +70,11 @@ sub Usage
 {
 	my ($exitcode)=shift @_;
 	my ($str)=shift @_;
-	my ($fp)=STDERR;
+	my ($fp)=*STDERR;
 
 	if ($exitcode==0)
 	{
-		$fp = STDOUT;
+		$fp = *STDOUT;
 	}
 	elsif (defined($str))
 	{
@@ -86,30 +86,47 @@ sub Usage
 }
 
 
+sub ChangeFileContent($$)
+{
+	my ($file,$content)=@_;
+	my ($fh);
+
+	open($fh,">$file") || die "could not open $file for write";
+
+	print $fh "$content";
+	close($fh);
+
+	return 0;	
+}
+
 
 sub __RandomDirCallBack($$$@)
 {
 	my ($dir,$fn,$p,@args)=@_;
-	my ($rnd,$href)=@args;
-	my ($mtime);
+	my ($rnd,$href,$cref)=@args;
+	my ($mtime,$con);
+	
 
 	# now to set the time
+	$con = $rnd->GetRandomFileName(30);
+	ChangeFileContent($fn,$con);
 	$mtime = time();
 	utime $mtime,$mtime,$fn;
 	$href->{$p} = $mtime;
+	$cref->{$p} = $con;
 	return 0;
 }
 
-sub SetNewRandom($$$)
+sub SetNewRandom($$$$)
 {
-	my ($dir,$nums,$href)=@_;
+	my ($dir,$nums,$href,$cref)=@_;
 	my ($ret);
 	my ($rd,$rnd);
 
 	$rd = RandDir->new();
 	$rnd = Random->new();
 
-	$rd->SetCallBack(\&__RandomDirCallBack,$rnd,$href);
+	$rd->SetCallBack(\&__RandomDirCallBack,$rnd,$href,$cref);
 	$ret = $rd->MakeRandomdirs($dir,$nums);
 	if ($ret != 0)
 	{
@@ -165,9 +182,9 @@ sub MakeCompareTest($$$$)
 {
 	my ($adir,$bdir,$equals,$notequals)=@_;
 	my ($foutstr);
-	my (%afiles,%bfiles);
+	my (%afiles,%bfiles,%acons,%bcons);
 	my (@asort,@bsort,@samesort);
-	my ($rnd);
+	my ($rnd,$ret,$i,$j);
 
 	@asort = ();
 	@bsort = ();
@@ -176,7 +193,7 @@ sub MakeCompareTest($$$$)
 	$rnd = Random->new();
 	
 
-	$ret = SetNewRandom($adir,$equals,\%afiles);
+	$ret = SetNewRandom($adir,$equals,\%afiles,\%acons);
 	if ($ret < 0)
 	{
 		ErrorExit(4,"can not create random equal $adir");
@@ -184,18 +201,29 @@ sub MakeCompareTest($$$$)
 
 	dircopy($adir,$bdir);
 	%bfiles = %afiles;
+	%bcons = %acons;
 
 	@samesort = sort(keys %afiles);
 	# now we should make the time different
 	for ($i=0;$i<@samesort;$i++)
 	{
-		my ($isyoung,$af,$bf,$curf,$mtime);
+		my ($isyoung,$af,$bf,$curf,$mtime,$iscon,$newcon);
 		$isyoung = $rnd->GetRandom(2);
+		$iscon = $rnd->GetRandom(2);
 		$curf = $samesort[$i];
 		$af = "$adir/$curf";
 		$bf = "$bdir/$curf";
+
+		
+		
 		if ($isyoung)
 		{
+			if ($iscon)
+			{
+				$newcon = $rnd->GetRandomFileName(30);
+				ChangeFileContent($bf,$newcon);
+				$bcons{$curf} = $newcon;
+			}
 			$mtime = time;
 			utime $mtime,$mtime,$af;
 			$afiles{$curf} = $mtime;
@@ -215,14 +243,14 @@ sub MakeCompareTest($$$$)
 	}
 
 
-	$ret = SetNewRandom($adir,$notequals,\%afiles);
+	$ret = SetNewRandom($adir,$notequals,\%afiles,\%acons);
 	if ($ret < 0)
 	{
 		ErrorExit(4, "can not create randoma diff $adir");
 	}
 
 
-	$ret = SetNewRandom($bdir,$notequals,\%bfiles);
+	$ret = SetNewRandom($bdir,$notequals,\%bfiles,\%bcons);
 	if ($ret < 0)
 	{
 		ErrorExit(4, "can not create randomb diff $bdir");
@@ -231,7 +259,7 @@ sub MakeCompareTest($$$$)
 	@asort = ExpandArray(\%afiles);
 	@bsort = ExpandArray(\%bfiles);
 
-	$foutstr = "TS $bdir\n";
+	$foutstr = "AS $bdir\n";
 	for ($i=0,$j=0;$i<@asort && $j < @bsort;)
 	{
 		my ($af,$bf);
@@ -262,7 +290,15 @@ sub MakeCompareTest($$$$)
 						}
 						elsif ($atime < $btime)
 						{
-							$foutstr .= "Y $bf\n";
+							if (defined($acons{$af}) &&
+								defined($bcons{$bf}))
+								{
+									if ("$acons{$af}" ne "$bcons{$bf}")
+									{
+										# it means that we change the file content
+										$foutstr .= "M $bf\n";
+									}
+								}
 						}
 						elsif ($atime > $btime)
 						{
@@ -303,7 +339,7 @@ sub MakeCompareTest($$$$)
 		$foutstr .= "+ $bf\n";
 	}
 
-	$foutstr .= "TE $bdir\n";
+	$foutstr .= "AE $bdir\n";
 
 	return $foutstr;
 	
@@ -326,7 +362,7 @@ STDOUT->autoflush(1);
 
 for ($i=0;$i < $times;$i++)
 {
-	my ($foutstr,$eoutstr);
+	my ($foutstr,$eoutstr,$cmd,$fh);
 	# first to remove the dir
 	
 	remove_tree($adir);
@@ -335,14 +371,14 @@ for ($i=0;$i < $times;$i++)
 	make_path($adir);
 	make_path($bdir);
 
-	$foutstr = MakeCompareTest($adir,$bdir,100,20);
+	$foutstr = MakeCompareTest($adir,$bdir,100,30);
 	if (!defined($foutstr))
 	{
 		# it means that we should not let it go on
 		next;
 	}
 		
-	$cmd = "perl ../../dirtime.pl -t $adir | perl ../../dirtime.pl -f - -t $bdir";
+	$cmd = "perl ../../dirtime.pl -t $adir | perl ../../dirtime.pl -f - -t $bdir | perl ../../dirtime.pl -s $adir | perl ../../dirtime.pl -d $bdir";
 
 	open($fh,"$cmd |") || ErrorExit(4,"can not runcmd $cmd");
 
