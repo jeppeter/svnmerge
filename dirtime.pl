@@ -2,6 +2,23 @@
 
 use Getopt::Std;
 use vars qw ($opt_h $opt_f $opt_t $opt_v $opt_V);
+use Cwd qw( abs_path getcwd);
+use File::Basename;
+
+sub GetScriptDir()
+{
+    my($script_dir);
+    $script_dir = dirname(abs_path($0));
+    return $script_dir;
+}
+
+BEGIN
+{
+	my ($script_dir)=GetScriptDir();
+	push (@INC,$script_dir);
+	
+}
+
 use DirTime;
 
 sub ErrorExit
@@ -193,7 +210,6 @@ if (defined($opt_f) && defined($opt_t))
 	my ($ifh);
 	if ("$opt_f" eq "-")
 	{
-		DebugString("opt_f($opt_f)\n");
 		$ifh = STDIN;
 	}
 	else

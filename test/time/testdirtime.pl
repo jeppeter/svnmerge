@@ -14,6 +14,7 @@
 use Cwd qw( abs_path getcwd);
 use File::Basename;
 use Text::Diff;
+use File::Path qw(make_path remove_tree);
 
 
 sub GetScriptDir()
@@ -49,7 +50,7 @@ sub ErrorExit($$)
 	my ($exitcode,$msg)=@_;
     my($pkg,$fn,$ln,$s)=caller(0);
 
-    printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
+    printf STDERR "[%-10s][%-20s][%-5d][ERROR]:%s\n",$fn,$s,$ln,$msg;
 	exit ($exitcode);
 }
 
@@ -66,7 +67,7 @@ BEGIN
 use RandDir;
 
 
-sub Usage($)
+sub Usage
 {
 	my ($exitcode)=shift @_;
 	my ($str)=shift @_;
@@ -85,293 +86,84 @@ sub Usage($)
 	exit $exitcode;
 }
 
-sub ErrorExit($$)
+
+
+sub __RandomDirCallBack($$$@)
 {
-	my ($exitcode,$msg)=@_;
-    my($pkg,$fn,$ln,$s)=caller(0);
-	
+	my ($dir,$fn,$p,@args)=@_;
+	my ($rnd,$href)=@args;
+	my ($mtime);
 
-	print STDERR "$pkg[$fn:$ln]\t$msg\n";
-	exit $exitcode;
-}
-
-if ($#ARGV < 0)
-{
-	Usage(3);
-}
-
-my ($dir)=shift @ARGV;
-my ($dira,$dirb);
-
-if ( ! -d $dir )
-{
-	ErrorExit(3,"$dir not directory");
+	# now to set the time
+	$mtime = $rnd->GetRandom(1000000000);
+	utime $mtime,$mtime,$fn;
+	$href->{$p} = $mtime;
+	return 0;
 }
 
 sub SetNewRandom($$$$)
 {
-	my ($dir,$equals,$equaltime,$notequals,$notequaltime,$href)=@_;
+	my ($dir,$equals,$notequals,$href)=@_;
+	my ($ret);
+	my ($rd,$rnd);
 
-	# now first to make the things ok
-	for ($i=0;$i<$equals ; $i++)
+	$rd = RandDir->new();
+	$rnd = Random->new();
+
+	$rd->SetCallBack(\&__RandomDirCallBack,$rnd,$href);
+	$ret = $rd->MakeRandomdirs($dir,$equals);
+	if ($ret != 0)
 	{
-		$curf="";
-		$curaf = "$dira/";
-		$curbf = "$dirb/";
-		$isdir = 0;
-		do
-		{
-			$isdir = $rc->GetRandom(2);
-
-			if ($isdir)
-			{
-				$curf .= "/".$rc->GetRandomFileName(12);
-				
-			}
-			else
-			{
-				$curf .= $rc->GetRandomFileName(12);
-			}
-		}while($isdir);
-
-		$curaf .= $curf;
-		$curbf .= $curf;
-
-		if (length($curaf) > 200 || length($curbf) > 200)
-		{
-			# do not make length ok
-			next;
-		}
-
-		$da = dirname($curaf);
-		$db = dirname($curbf);
-
-		if ( ! -e $da ||  ! -d $da )
-		{
-			remove_tree($da);
-			make_path($da);
-		}
-
-		if ( ! -d $da )
-		{
-			ErrorExit( 4,"could not make dir $da for $curaf");
-		}
-
-		if ( ! -e $curaf || ! -f $curaf )
-		{
-			remove($curaf);
-			touch($curaf);
-		}
-
-		if ( ! -e $db || ! -d $db )
-		{
-			remove_tree($db);
-			make_path($db);
-		}
-
-		if ( ! -d $db )
-		{
-			ErrorExit(4, "could not make dir $db for $curbf");
-		}
-
-		if ( ! -e $curbf || ! -f $curbf )
-		{
-			remove($curbf);
-			touch($curbf);
-		}
-
-		# now to utime
-		@fst = stat($curaf);
-		if (@fst <= 9)
-		{
-			ErrorExit(4, "can not stat $curaf");
-		}
-		$amtime = $fst[9];
-
-		@fst = stat($curbf);
-		if (@fst <= 9)
-		{
-			ErrorExit(4, "can not stat $curbf");
-		}
-
-		$bmtime = $fst[9];
-
-		$smtime = $amtime;
-		if ($bmtime > $amtime)
-		{
-			$smtime = $bmtime;
-		}
-
-		utime $smtime,$smtime,$curaf || ErrorExit(4 ,"can not change file $curaf");
-		utime $smtime,$smtime,$curbf || ErrorExit(4, "can not change file $curbf");
-
-		# ok nothing to handle for this
+		return $ret;
 	}
 
-	# now to make the not equals ok
-	for ($i=0;$i<$notequals;$i++)
+	$ret = $rd->MakeRandomdirs($dir,$notequals);
+	if ($ret != 0)
 	{
-		$curf = "";
-		$curaf = "$dira/";
-		$curbf = "$dirb/";
-		do
-		{
-			$isdir = $rc->GetRandom(2);
-
-			if ($isdir)
-			{
-				$curf .= "/".$rc->GetRandomFileName(12);
-				
-			}
-			else
-			{
-				$curf .= $rc->GetRandomFileName(12);
-			}
-		}while($isdir);
-
-		$curaf .= "$curf";
-
-		$curf = "";
-		do
-		{
-			$isdir = $rc->GetRandom(2);
-
-			if ($isdir)
-			{
-				$curf .= "/".$rc->GetRandomFileName(12);
-				
-			}
-			else
-			{
-				$curf .= $rc->GetRandomFileName(12);
-			}
-		}while($isdir);
-
-		$curbf .= "$curf";
-
-		# now if the file is ok
-		if (length($curaf) < 200)
-		{
-			$da = dirname($curaf);
-			if ( ! -e $da ||  ! -d $da )
-			{
-				remove_tree($da);
-				make_path($da);
-			}
-
-			if ( ! -d $da )
-			{
-				ErrorExit(4, "could not make dir $da for $curaf");
-			}
-
-			# and touch the file
-			if ( ! -e $curaf || ! -f $curaf )
-			{
-				remove($curaf);
-				touch($curaf);
-			}
-
-			@fst = stat($curaf);
-			if (@fst <= 9)
-			{
-				ErrorExit(4, "can not stat $curaf");
-			}
-			$amtime = $fst[9];
-			$afiles{$curaf} = $amtime;			
-		}
-
-		if (length($curbf) < 200)
-		{
-			$db = dirname($curbf);
-			if ( ! -e $db ||  ! -d $db )
-			{
-				remove_tree($db);
-				make_path($db);
-			}
-
-			if ( ! -d $db )
-			{
-				ErrorExit(4, "could not make dir $db for $curbf");
-			}
-
-			# and touch the file
-			if ( ! -e $curbf || ! -f $curbf )
-			{
-				remove($curbf);
-				touch($curbf);
-			}
-
-			@fst = stat($curbf);
-			if (@fst <= 9)
-			{
-				ErrorExit(4, "can not stat $curbf");
-			}
-			$bmtime = $fst[9];
-			$bfiles{$curbf} = $bmtime;			
-			
-		}		
-	}
-	
-	@asortfiles = sort(keys %afiles);
-	@bsortfiles = sort(keys %bfiles);
-
-	$outstr = "";
-
-	$i = 0;
-	$j = 0;
-
-	while( ($i < @asortfiles) && ($j < @bsortfiles))
-	{
-		# now to give the compare
-		if ( "$asortfiles[$i]" lt "$bsortfiles[$j]" )
-		{
-			$outstr .= "+ $asortfiles[$i]\n";
-			$i ++;			
-		}
-		elsif ( "$asortfiles[$i]" gt "$bsortfiles[$j]" )
-		{
-			$outstr .= "- $bsortfiles[$j]\n";
-			$j ++;
-		}
-		else
-		{
-			# that is the same,so we get the time
-			$curaf = $asortfiles[$i];
-			$curbf = $bsortfiles[$j];
-
-			if ( $afiles{$curaf} > $bfiles{$curbf} )
-			{
-				$outstr .= "Y $curaf\n";
-				$outstr .= "T $afiles{$curaf}\n";
-			}
-			elsif ($afiles{$curaf} < $bfiles{$curbf} )
-			{
-				$outstr .= "O $curbf\n";
-				$outstr .= "T $bfiles{$curbf}\n";
-			}
-			$i ++;
-			$j ++;
-		}
-	}
-	
-	while($i < @asortfiles)
-	{
-		$outstr .= "+ $asortfiles[$i]\n";
-		$i ++;
+		return $ret;
 	}
 
-	while($j < @bsortfiles)
-	{
-		$outstr .= "- $bsortfiles[$j]\n";
-		$j ++;
-	}
+	# all is ok
+	return 0;
 
-
-	# now we return it
-	return $outstr;
 }
 
+sub ExpandArray($)
+{
+	my ($href)=@_;
+	my (@sortarr);
+	my (@retarr,$curf,$i,$j);
 
+	@sortarr = sort keys(%{$href});
+
+	# now we should give the expand
+	for($i=0;$i<@sortarr;$i++)
+	{
+		my (@ns,$fn);
+		$curf = $sortarr[$i];
+		@ns = split('/',$curf);
+		$fn = "";
+		for ($j=0;$j<(scalar(@ns)-1);$j++)
+		{
+			$fn .= "$ns[$j]";
+			if (!defined($href->{$fn}))
+			{
+				push(@retarr,$fn);
+			}
+			
+			$fn .= "/";
+		}
+
+		# that the last one ,so we should push it ok
+		push(@retarr,$curf);
+	}
+
+	@sortarr = sort(@retarr);
+	@retarr = @sortarr;
+
+	return @retarr;
+	
+}
 
 
 
@@ -388,8 +180,8 @@ sub MakeCompareTest($$$$)
 	undef(%bfiles);
 	@asort = ();
 	@bsort = ();
-	%afiles = {};
-	%bfiles = {};
+	undef(%afiles);
+	undef(%bfiles);
 
 
 	$ret = SetNewRandom($adir,$equals,$notequals,\%afiles);
@@ -404,8 +196,8 @@ sub MakeCompareTest($$$$)
 		ErrorExit(4, "can not create randomb $bdir");
 	}
 
-	@asort = sort( keys %afiles);
-	@bsort = sort( keys %bfiles);
+	@asort = ExpandArray(\%afiles);
+	@bsort = ExpandArray(\%bfiles);
 
 	$foutstr = "TS $bdir\n";
 	for ($i=0,$j=0;$i<@asort && $j < @bsort;)
@@ -426,24 +218,38 @@ sub MakeCompareTest($$$$)
 		else		
 		{
 			my ($atime,$btime);
-			$atime = $afiles{$af};
-			$btime = $bfiles{$bf};
-			if ( $atime == 0 || 
-				$btime == 0)
+			if (defined($afiles{$af}) &&
+				defined($bfiles{$bf}))
 				{
-					# nothing to do
+					$atime = $afiles{$af};
+					$btime = $bfiles{$bf};
+					if ( $atime == 0 || 
+						$btime == 0)
+						{
+							# nothing to do
+						}
+						elsif ($atime < $btime)
+						{
+							$foutstr .= "Y $bf\n";
+						}
+						elsif ($atime > $btime)
+						{
+							# nothing to do
+						}
+						else
+						{
+							# it is ok
+						}
 				}
-				elsif ($atime < $btime)
-				{
-					$foutstr .= "Y $bf\n";
-				}
-				elsif ($atime > $btime)
+				elsif (defined($afiles{$af}) &&
+					defined($bfiles{$bf}))
 				{
 					# nothing to do
 				}
 				else
 				{
-					# it is ok
+					# it is really an error
+					return undef;
 				}
 				$i ++;
 				$j ++;
@@ -470,29 +276,9 @@ sub MakeCompareTest($$$$)
 	
 }
 
-sub Usage()
-{
-    my($exitcode)=shift @_;
-    my ($msg)=shift @_;
-    my($pkg,$fn,$ln,$s)=caller(0);
-    my ($fp)=STDERR;
-
-	if ($exitcode == 0)
-	{
-		$fp = STDOUT;
-	}
-    if(defined($msg))
-    {
-        printf $fp "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
-    }
-
-    print $fp "$0 dir times\n";
-    exit($exitcode);
-}
-
 if (@ARGV < 2)
 {
-	Usage(3);
+	Usage(3,"\@ARGV @ARGV < 2");
 }
 
 my ($testdir)=shift @ARGV;
@@ -506,10 +292,17 @@ $bdir = "$testdir/b";
 for ($i=0;$i < $times;$i++)
 {
 	my ($foutstr,$eoutstr);
-	my ($rc);
-	my ($cmd,$fh,%afiles,%bfiles);
-	my (@sorta,@sortb);
 	# first to remove the dir
+	if (($i%10)==0)
+	{
+		if ($i)
+		{
+			print  "\n";
+		}
+		printf  "0x%08x:\t",$i;
+	}
+	print  "."; 
+	
 	remove_tree($adir);
 	remove_tree($bdir);
 
@@ -517,6 +310,11 @@ for ($i=0;$i < $times;$i++)
 	make_path($bdir);
 
 	$foutstr = MakeCompareTest($adir,$bdir,100,20);
+	if (!defined($foutstr))
+	{
+		# it means that we should not let it go on
+		next;
+	}
 		
 	$cmd = "perl ../../dirtime.pl -t $adir | perl ../../dirtime.pl -f - -t $bdir";
 
@@ -532,7 +330,10 @@ for ($i=0;$i < $times;$i++)
 	if ( "$eoutstr"  ne "$foutstr")
 	{
 		ErrorExit(4,"String at $adir <=> $bdir\nfoutstr ==============\n$foutstr\n===============\neoutstr ++++++++++++++++++++++\n$eoutstr\n++++++++++++++++++\n");
-	}	
+	}
+
 }
 
+print STDERR "\n";
+print STDERR "Run Test $i times succ\n";
 

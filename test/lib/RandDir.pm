@@ -95,9 +95,10 @@ sub MakeRandomdirs($$$)
 
 		$fn = "$absdir/$p";
 
-		if (length($f) > 200)
+		if (length($fn) > 200)
 		{
 			# we can not make file in more 200 characters
+			$self->_DebugString("length of $fn".length($fn));
 			next;
 		}
 

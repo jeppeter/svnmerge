@@ -23,6 +23,16 @@ sub __SetError
 	return $exitcode;
 }
 
+sub __DieError
+{
+	my ($self,$msg)=@_;
+    my ($self,$str)=@_;
+    my ($package,$file,$line,$func)=caller(0);
+
+    die "[$file][$func]:$line $str";
+	
+}
+
 sub GetError
 {
 	my ($self)=@_;
@@ -260,7 +270,8 @@ sub _GetTime
     $mtime = "0";
 
 	$href = $self->{_hash};
-    $filename = "$href->{_dir}"."/$file";
+	$filename = $href->{_dir};
+    $filename .= "/$file";
     if( -f $filename )
     {
     	@attr = stat($filename);
@@ -268,7 +279,11 @@ sub _GetTime
     	{
     		$mtime = $attr[9];
     	}
-    }    
+    }
+    else
+    {
+    	$self->_DebugString("$filename not file in".$href->{_dir});
+    }
     return $mtime;
 }
 
@@ -325,9 +340,14 @@ sub GetCmpString
 				# get next one
 				$curmtime = $self->_GetTime($curfile);
 				#$self->_DebugString("$curfile $omtime <=> $curmtime\n");
-				if ( $curmtime < $omtime )
+				if ( $curmtime < $omtime && $curmtime > 0)
 				{
 					# it means current file is old so do not use any one
+				}
+				elsif ($curmtime < $omtime && $curmtime == 0)
+				{
+					# this means that we have the directory so we must to modify this ok
+					$self->__DieError("$curfile is directory but on the otherhand $file regular file $omtime\n");
 				}
 				elsif ( $curmtime > $omtime )
 				{
@@ -377,6 +397,12 @@ sub GetCmpString
 			}
 			else
 			{
+				# now it is the same name ,so we should make sure they are the same
+				$curmtime = $self->_GetTime($curfile);
+				if ($curmtime != 0)
+				{
+					$self->__DieError("$curfile must be directory\n");
+				}
 				# get next one
 				#$self->_DebugString("Diff $file <=> ".(defined($curfile) ? "$curfile" : "Not curfile")."\n");
 				$self->_GetNextFile();
