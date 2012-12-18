@@ -15,6 +15,16 @@ sub GetScriptDir()
     return $script_dir;
 }
 
+sub GetScriptLibDir()
+{
+    my ($libdir);
+    my ($libredir);
+    $libredir = dirname(abs_path($0));
+    $libredir .= "/../lib";
+    $libdir= abs_path($libredir);
+    return $libdir;
+}
+
 sub DebugString($)
 {
     my($msg)=@_;
@@ -30,7 +40,8 @@ sub DebugString($)
 BEGIN
 {
 	my ($script_dir)=GetScriptDir();
-
+	push (@INC,$script_dir);
+	$script_dir = GetScriptLibDir();
 	push (@INC,$script_dir);
 	
 }

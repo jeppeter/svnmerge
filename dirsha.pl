@@ -108,9 +108,9 @@ sub Usage($)
     exit($exitcode);
 }
 
-sub DirDiff($$@)
+sub DirDiff($$$@)
 {
-    my ($fdir,$rfd,@sortfiles)=@_;
+    my ($verbose,$fdir,$rfd,@sortfiles)=@_;
     my ($curfile,$curdigest,$curline);
     my ($cont);
     my ($err,$rlines);
@@ -214,7 +214,7 @@ sub DirDiff($$@)
 
             $curpercent = $curcount / $totalcount;
 #            DebugString("Percent $curpercent $percent\n");
-            if ( ($curcount - $lastcount) > 100 &&  defined($opt_v))
+            if ( ($curcount - $lastcount) > 100 &&  $verbose)
             {
             	$clcon = "\r";
             	for ($_b = 0 ; $_b < $perlen ; $_b ++)
@@ -263,7 +263,7 @@ sub DirDiff($$@)
     }
     while($cont);
 
-    if (defined($opt_v))
+    if ($verbose)
     {
        	$clcon = "\r";
        	for ($_b = 0 ; $_b < $perlen ; $_b ++)
@@ -410,7 +410,7 @@ if ($opt_f)
         open($rdfd,"<$opt_f") || die "can not open $opt_f for compare\n";
     }
     
-    DirDiff($cmpdir,$rdfd,@g_sortfiles);
+    DirDiff(defined($opt_v) ? 1 : 0,$cmpdir,$rdfd,@g_sortfiles);
 
 # now to close the rdfd
     if (fileno($rdfd) != fileno(STDIN))
