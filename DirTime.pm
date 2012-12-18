@@ -282,7 +282,7 @@ sub _GetTime
     }
     else
     {
-    	$self->_DebugString("$filename not file in".$href->{_dir});
+    	#$self->_DebugString("$filename not file in".$href->{_dir}."\n");
     }
     return $mtime;
 }

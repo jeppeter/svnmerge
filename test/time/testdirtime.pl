@@ -15,7 +15,7 @@ use Cwd qw( abs_path getcwd);
 use File::Basename;
 use Text::Diff;
 use File::Path qw(make_path remove_tree);
-
+use File::Copy::Recursive qw(dircopy);
 
 sub GetScriptDir()
 {
@@ -39,7 +39,6 @@ sub DebugString($)
     my($msg)=@_;
     my($pkg,$fn,$ln,$s)=caller(0);
 
-    if(defined($st_Verbose)&&$st_Verbose)
     {
         printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
     }
@@ -95,15 +94,15 @@ sub __RandomDirCallBack($$$@)
 	my ($mtime);
 
 	# now to set the time
-	$mtime = $rnd->GetRandom(1000000000);
+	$mtime = time();
 	utime $mtime,$mtime,$fn;
 	$href->{$p} = $mtime;
 	return 0;
 }
 
-sub SetNewRandom($$$$)
+sub SetNewRandom($$$)
 {
-	my ($dir,$equals,$notequals,$href)=@_;
+	my ($dir,$nums,$href)=@_;
 	my ($ret);
 	my ($rd,$rnd);
 
@@ -111,13 +110,7 @@ sub SetNewRandom($$$$)
 	$rnd = Random->new();
 
 	$rd->SetCallBack(\&__RandomDirCallBack,$rnd,$href);
-	$ret = $rd->MakeRandomdirs($dir,$equals);
-	if ($ret != 0)
-	{
-		return $ret;
-	}
-
-	$ret = $rd->MakeRandomdirs($dir,$notequals);
+	$ret = $rd->MakeRandomdirs($dir,$nums);
 	if ($ret != 0)
 	{
 		return $ret;
@@ -173,27 +166,66 @@ sub MakeCompareTest($$$$)
 	my ($adir,$bdir,$equals,$notequals)=@_;
 	my ($foutstr);
 	my (%afiles,%bfiles);
-	my (@asort,@bsort);
-	my ($rc);
+	my (@asort,@bsort,@samesort);
+	my ($rnd);
 
-	undef(%afiles);
-	undef(%bfiles);
 	@asort = ();
 	@bsort = ();
 	undef(%afiles);
 	undef(%bfiles);
+	$rnd = Random->new();
+	
 
-
-	$ret = SetNewRandom($adir,$equals,$notequals,\%afiles);
+	$ret = SetNewRandom($adir,$equals,\%afiles);
 	if ($ret < 0)
 	{
-		ErrorExit(4,"can not create randoma $adir");
+		ErrorExit(4,"can not create random equal $adir");
 	}
 
-	$ret = SetNewRandom($bdir,$equals,$notequals,\%bfiles);
+	dircopy($adir,$bdir);
+	%bfiles = %afiles;
+
+	@samesort = sort(keys %afiles);
+	# now we should make the time different
+	for ($i=0;$i<@samesort;$i++)
+	{
+		my ($isyoung,$af,$bf,$curf,$mtime);
+		$isyoung = $rnd->GetRandom(2);
+		$curf = $samesort[$i];
+		$af = "$adir/$curf";
+		$bf = "$bdir/$curf";
+		if ($isyoung)
+		{
+			$mtime = time;
+			utime $mtime,$mtime,$af;
+			$afiles{$curf} = $mtime;
+			$mtime += 10;
+			utime $mtime,$mtime,$bf;
+			$bfiles{$curf} = $mtime;
+		}
+		else
+		{
+			$mtime = time;
+			utime $mtime,$mtime,$bf;
+			$bfiles{$curf}=$mtime;
+			$mtime += 10;
+			utime $mtime,$mtime,$af;
+			$afiles{$curf} = $mtime;
+		}
+	}
+
+
+	$ret = SetNewRandom($adir,$notequals,\%afiles);
 	if ($ret < 0)
 	{
-		ErrorExit(4, "can not create randomb $bdir");
+		ErrorExit(4, "can not create randoma diff $adir");
+	}
+
+
+	$ret = SetNewRandom($bdir,$notequals,\%bfiles);
+	if ($ret < 0)
+	{
+		ErrorExit(4, "can not create randomb diff $bdir");
 	}
 
 	@asort = ExpandArray(\%afiles);
@@ -241,14 +273,15 @@ sub MakeCompareTest($$$$)
 							# it is ok
 						}
 				}
-				elsif (defined($afiles{$af}) &&
-					defined($bfiles{$bf}))
+				elsif (((!defined($afiles{$af})) &&
+					(!defined($bfiles{$bf}))))
 				{
 					# nothing to do
 				}
 				else
 				{
 					# it is really an error
+					DebugString("make all");
 					return undef;
 				}
 				$i ++;
@@ -289,19 +322,12 @@ my ($adir,$bdir);
 $adir = "$testdir/a";
 $bdir = "$testdir/b";
 
+STDOUT->autoflush(1);
+
 for ($i=0;$i < $times;$i++)
 {
 	my ($foutstr,$eoutstr);
 	# first to remove the dir
-	if (($i%10)==0)
-	{
-		if ($i)
-		{
-			print  "\n";
-		}
-		printf  "0x%08x:\t",$i;
-	}
-	print  "."; 
 	
 	remove_tree($adir);
 	remove_tree($bdir);
@@ -331,6 +357,15 @@ for ($i=0;$i < $times;$i++)
 	{
 		ErrorExit(4,"String at $adir <=> $bdir\nfoutstr ==============\n$foutstr\n===============\neoutstr ++++++++++++++++++++++\n$eoutstr\n++++++++++++++++++\n");
 	}
+	if (($i%16)==0)
+	{
+		if ($i)
+		{
+			print  "\n";
+		}
+		printf  "0x%08x:\t",$i;
+	}
+	print  ".";
 
 }
 
