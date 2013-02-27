@@ -22,4 +22,7 @@ sub MakeDirOrDie($)
 $! =0;
 my ($d) = shift @ARGV;
 
-MakeDirOrDie($d);
+if (defined($d))
+{
+	eval{MakeDirOrDie($d);} || print STDERR "$@";
+}
