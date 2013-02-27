@@ -2,15 +2,10 @@
 
 use warnings;
 use strict;
-use File::Basename;
-use Cwd;
-
-my ($d) = shift @ARGV;
-
+use File::Path;
 sub MakeDirOrDie($)
 {
 	my ($d) = @_;
-	my ($fd);
 	if ( -d $d)
 	{
 		return ;
@@ -20,22 +15,11 @@ sub MakeDirOrDie($)
 		die "($d) not dir";
 	}
 
-	$fd = dirname($d);
-	print "($d) ($fd)\n";
-	if ( $fd ne $d )
-	{
-		MakeDirOrDie($fd);
-	}
 	
-	mkdir $d;
-	if ($!)
-	{
-		die "can not mkdir($d) error($!)\n";
-	}
+	eval{mkpath($d)} || die "can not mkdir($d) error($@)\n";
 	return;
 }
-eval( MakeDirOrDie($d));
-if ($!)
-{
-	print STDERR "error $d($!)\n";
-}
+$! =0;
+my ($d) = shift @ARGV;
+
+MakeDirOrDie($d);

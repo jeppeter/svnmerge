@@ -4,8 +4,10 @@
 use warnings;
 use strict;
 use File::Basename;
+use File::Path;
 use Cwd;
-
+use File::Copy;
+use Getopt::Std;
 use vars qw ($opt_h $opt_o $opt_t $opt_f);
 sub Usage
 {
@@ -43,17 +45,29 @@ sub MakeDirOrDie($)
 	{
 		die "($d) not dir";
 	}
-	mkdir $d;
-	if ($!)
-	{
-		die "can not mkdir($d) error($!)\n";
-	}
+
+	
+	eval{mkpath($d)} || die "can not mkdir($d) error($@)\n";
 	return;
 }
 
-sub CopyFileOrDir($$$$)
+sub CopyFileSafe($$)
 {
-	my ($srcdir,$dstdir,$f,$prefix)=@_;
+	my ($s,$d)=@_;
+
+	if ( -e $d && 
+		! -f $d)
+		{
+			die "$d not regular file";
+		}
+
+	eval{copy ($s,$d);} || die "could not copy $s =>$d ($@)";
+	return ;
+}
+
+sub CopyFileOrDir($$$)
+{
+	my ($srcdir,$dstdir,$f)=@_;
 	my ($totalsrc,$totaldst,$sd,$dd,$sb,$db);
 
 	$totalsrc = "$srcdir/$f";
@@ -66,7 +80,9 @@ sub CopyFileOrDir($$$$)
 		$sd = dirname($totalsrc);
 		$dd = dirname($totaldst);
 		MakeDirOrDie($dd);
-		# now we should
+		# now we should copy it
+		CopyFileSafe($totalsrc,$totaldst);
+		
 	}
 	elsif ( -d $totalsrc )
 	{
@@ -74,7 +90,6 @@ sub CopyFileOrDir($$$$)
 	}
 	else
 	{
-		print STDERR "we do not anything for ($srcdir:$f)\n";
 		return ;
 	}
 }
@@ -83,11 +98,17 @@ sub CopyDiffSvn($$$$)
 {
 	my ($od,$td,$df,$rd)=@_;
 	my ($fh);
+	my ($rod,$rtd);
 
 	if (! -d $rd )
 	{
 		MakeDirOrDie($rd);
 	}
+
+	$rod = "$rd/ours";
+	$rtd = "$rd/theirs";
+	MakeDirOrDie($rod);
+	MakeDirOrDie($rtd);
 
 	open($fh ,"<$df") || die "could not open($df) error($!)";
 	while(<$fh>)
@@ -117,16 +138,17 @@ sub CopyDiffSvn($$$$)
 			next;
 		}
 
-		CopyFileOrDir($od,$rd,$f,".ours");
-		CopyFileOrDir($td,$rd,$f,".theirs");		
-	}
+		
 
+		CopyFileOrDir($od,$rod,$f);
+		CopyFileOrDir($td,$rtd,$f);
+	}
 	close($fh);
 	return;
 }
 
 my ($od,$td);
-my ($df);
+my ($df,$rd);
 
 getopts("ho:t:f:");
 
@@ -154,6 +176,12 @@ if (!defined($opt_f))
 }
 $df = $opt_f;
 
+$rd = shift @ARGV;
+if (!defined($rd))
+{
+	$rd = ".";
+}
 
 
+CopyDiffSvn($od,$td,$df,$rd);
 
