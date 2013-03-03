@@ -127,6 +127,13 @@ sub ParseCmds(@)
 	{
 		Usage(3,"cmds need args");
 	}
+	@st_Cmds = splice(@cmds,$i);
+
+	if (!defined($st_Port) ||
+		!defined($st_Host))
+	{
+		Usage(3,"Must specify -H and -p");
+	}
 
 	return;
 }
@@ -175,17 +182,123 @@ sub ReadSock($$)
 {
 	my ($outf,$sock)=@_;
 	my ($sel);
+	my ($buf);
 
-	
+	$sel = IO::Select();
+	$sel->add($sock);
+	while($st_bRunning)
+	{
+		my (@reads);
+
+		@reads = $sel->can_read(10);
+		if (@reads > 0)
+		{
+			$buf = <$sock>;
+			if (length($buf) > 0)
+			{
+				print $outf "$buf";
+			}
+		}		
+	}
+
+	exit(0);
+	return ;
 }
+
+sub KillChildAndWait($$)
+{
+	my ($pid,$sig)=@_;
+	my ($rpid,$times);
+	$times = 0;
+	do
+	{
+		if ($times < 10)
+		{
+			kill($sig,$pid);
+		}
+		else
+		{
+			# we kill it rightly
+			kill(9,$pid);
+		}		
+		$rpid = waitpid($pid,WNOHANG);
+		if ($rpid != $pid)
+		{
+			sleep(1);
+			$times ++;
+			
+		}
+	}while($pid!= $rpid);
+	return ;
+}
+
 
 sub ConnectAndHandle($$$@)
 {
 	my ($inf,$outf,$sock,@cmds)=@_;
-	my ($ret,$l);
+	my ($ret,$l,$cpid);
+	undef($cpid);
 
 	# now first to send cmd
-	$ret = SendRunCmd($sock,);
-	
+	$ret = SendRunCmd($sock,@cmds);
+	if ($ret < 0)
+	{
+		return $ret;
+	}
+
+	# now to fork and give the 
+	$cpid = fork();
+	if (!defined($cpid))
+	{
+		return -3;
+	}
+	elsif ($cpid == 0)
+	{
+		# child 
+		ReadSock($outf,$sock);
+		exit(3);
+	}
+
+	# this is parent
+	while(<$inf>)
+	{
+		my ($l) = $_;
+		print $sock "$l";
+	}
+
+	KillChildAndWait($cpid,2);
+	return 0;
 }
+
+sub ConnectRemote($$)
+{
+	my ($ip,$port)=@_;
+	my ($sock);
+	undef($sock);
+    $sock = new IO::Socket::INET(PeerHost => $ip,
+                                 PeerPort => $port,
+                                 Proto => 'tcp',
+                                 Blocking => 0
+                                );
+
+	DebugString("Connect $ip:$port $sock");
+	return $sock;	
+}
+my ($st_Sock);
+ParseCmds(@ARGV);
+
+
+
+# now to connect for host
+$SIG{'INT'}=\&SigHandleExit;
+$SIG{'TERM'}=\&SigHandleExit;
+
+$st_Sock = ConnectRemote($st_Host,$st_Port);
+if (!defined($st_Sock))
+{
+	die "can not connect to $st_Host:$st_Port";
+}
+
+ConnectAndHandle(*STDIN,*STDOUT,$st_Sock,@st_Cmds);
+undef($st_Sock);
 
