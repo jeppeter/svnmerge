@@ -125,7 +125,60 @@ sub ParseCmds(@)
 
 	if ($i >= @cmds)
 	{
-		
+		Usage(3,"cmds need args");
 	}
+
+	return;
+}
+
+sub QuoteString($)
+{
+	my ($s) = @_;
+	my ($rets);
+
+	$rets = $s;
+	if ($s =~ m/[\s]+/o)
+	{
+		$rets = "\"$s\"";
+	}
+	return $rets;
+}
+
+sub QuoteStringArray(@)
+{
+	my (@strs) =@_;
+	my (@retstrs);
+	foreach(@strs)
+	{
+		push(@retstrs,QuoteString($_));
+	}
+	return @retstrs;
+}
+
+sub SendRunCmd($@)
+{
+	my ($sock,@cmds)=@_;
+	my ($cmd);
+
+	$cmd = join(' ',QuoteStringArray(@cmds));
+
+	print $sock "$cmd";
+	return 0;
+}
+
+sub ReadSock($$)
+{
+	my ($outf,$sock)=@_;
+	my ($sel);
+}
+
+sub ConnectAndHandle($$$@)
+{
+	my ($inf,$outf,$sock,@cmds)=@_;
+	my ($ret,$l);
+
+	# now first to send cmd
+	$ret = SendRunCmd($sock,);
+	
 }
 
