@@ -166,10 +166,17 @@ sub SendRunCmd($@)
 	return 0;
 }
 
+
+#############################
+# the socket that read the 
+#
+#############################
 sub ReadSock($$)
 {
 	my ($outf,$sock)=@_;
 	my ($sel);
+
+	
 }
 
 sub ConnectAndHandle($$$@)
