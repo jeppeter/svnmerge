@@ -33,6 +33,16 @@ sub Usage
 sub ServerSessionHandle($)
 {
 	my ($sock)=@_;
+	my ($cmd);
+	# now first we should get the command
+	$cmd = <$sock>;
+	if (!defined($cmd) ||
+		length($cmd) <= 0)
+	{
+		exit(0);
+	}
+
+	# now we should close the socket
 }
 
 sub AcceptAndFork($)
