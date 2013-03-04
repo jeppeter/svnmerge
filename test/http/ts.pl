@@ -45,6 +45,29 @@ sub ServerSessionHandle($)
 	# now we should close the socket
 }
 
+sub ChildHandleSock($)
+{
+	my ($sock)=@_;
+	my ($cmd);
+
+	$cmd = <$sock>;
+	if (!defined($cmd) ||
+		length($cmd))
+	{
+		DebugString("can not Handle Child read");
+		exit(3);
+	}
+
+	chomp($cmd);
+	DebugString("read cmd ($cmd)\n");
+
+	# now to duplicate the file
+	POSIX::dup2(fileno($sock),fileno(STDIN));
+	POSIX::dup2(fileno($sock),fileno(STDOUT));
+	exec($cmd);
+	exit(4);
+}
+
 sub AcceptAndFork($)
 {
 	my ($sock)=@_;
@@ -72,7 +95,96 @@ sub AcceptAndFork($)
 
 	# now to close the accept socket
 	undef($accsock);
-	return $cpid;
+	return $cpid;	
+}
+
+sub HandleChildsWaitOver($)
+{
+	my ($caref) = @_;
+	my ($ecnum);
+	my ($i);
+	my (@cp);
+	my ($c,$retc,$err);
+	$ecnum = 0;
+	@cp = @{$caref};
+	for ($i=0;$i<@cp;$i++)
+	{
+		$c = $cp[$i];
+		$retc = waitpid($c,WNOHANG);
+		if ($retc == $c )
+		{
+			# exit ,so let it set undef
+			$cp[$i] = undef;
+			$ecnum ++;
+		}
+		elsif ($retc == -1)
+		{
+			# it may be exited,so we get it the error
+			$err = POSIX::Errno();
+			if ($err == Errno::ECHILD||
+				$err == Errno::EINVAL)
+			{
+				$cp[$i] = undef;
+				$ecnum ++;
+			}
+		}
+	}
+
+	# now test if we have some exit child number
+	if ($ecnum)
+	{
+		@{$caref} = ();
+		foreach(@cp)
+		{
+			$c = $_;
+			if (defined($c))
+			{
+				push(@{$caref},$c);
+			}
+		}
+	}
+
+	return $ecnum;	
+}
+
+sub KillChilds($$)
+{
+	my ($caref,$sig) = @_;
+	foreach(@{$caref})
+	{
+		kill($sig,$_);
+	}
+
+	return;
+}
+
+sub KillAndWaitChildsExit($)
+{
+	my ($caref)=@_;
+	my ($sig,$times);
+	$times = 0;
+	while(@{$caref} > 0)
+	{
+		# now to kill
+		if ($times > 10)
+		{
+			$sig = 9;
+		}
+		else
+		{
+			$sig = 2;
+		}
+
+		$times ++;
+		KillChilds($caref,$sig);
+		HandleChildsWaitOver($caref);
+		if (@{$caref} > 0)
+		{
+			sleep(1);
+		}
+	}
+
+	return ;
 	
 }
 
@@ -81,20 +193,29 @@ sub ServerAcceptHandle($)
 	my ($sock)=@_;
 	my (@childs,@reads);
 	my ($sel);
+	my ($cpid);
 
 	$sel = IO::Select->new();
 	$sel->add($sock);
 
 	while($st_bRunning)
 	{
+		undef($cpid);
 		@reads = $sel->can_read(10);
 		if (@reads > 0)
 		{
-			
+			$cpid = AcceptAndFork($sock);
+			if (defined($cpid))
+			{
+				push(@childs,$cpid);
+			}
 		}
+
+		HandleChildsWaitOver(\@childs);
 	}
 
-	
+	KillAndWaitChildsExit(\@childs);
+	return ;
 }
 
 sub BindSocket($)
