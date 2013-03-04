@@ -21,9 +21,24 @@ my ($st_Verbose);
 my (@st_Cmds);
 my ($st_Host,$st_Port);
 
+sub DebugString($)
+{
+    my($msg)=@_;
+    my($pkg,$fn,$ln,$s)=caller(0);
+
+    #if(defined($st_Verbose)&&$st_Verbose)
+    {
+        printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s",$fn,$s,$ln,$msg;
+    }
+}
+
+
 sub SigHandleExit
 {
 	my ($sig)=@_;
+	my ($p);
+	$p = getpid();
+	DebugString("<$p>sig $sig\n");
 	if ("$sig" eq "INT" || 
 		"$sig" eq "SIGTERM" )
 	{
@@ -31,16 +46,6 @@ sub SigHandleExit
 	}
 }
 
-sub DebugString($)
-{
-    my($msg)=@_;
-    my($pkg,$fn,$ln,$s)=caller(0);
-
-    if(defined($st_Verbose)&&$st_Verbose)
-    {
-        printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s\n",$fn,$s,$ln,$msg;
-    }
-}
 
 sub ErrorString($)
 {
@@ -74,7 +79,7 @@ sub Usage
 	print $fp "\t-p port\n";
 	print $fp "\t-v verbose mode\n";
 	print $fp "\t-- to stop parse\n";	
-	print $fp "must specify -s or -d either otherwise it is error\n";
+	print $fp "must specify -H and -p either otherwise it is error\n";
 	exit($ec);
 }
 
@@ -184,21 +189,25 @@ sub ReadSock($$)
 	my ($sel);
 	my ($buf);
 
-	$sel = IO::Select();
+	$sel = IO::Select->new();
 	$sel->add($sock);
 	while($st_bRunning)
 	{
 		my (@reads);
 
-		@reads = $sel->can_read(10);
+		@reads = $sel->can_read(0.1);
 		if (@reads > 0)
 		{
 			$buf = <$sock>;
-			if (length($buf) > 0)
+			if (defined($buf) && length($buf) > 0)
 			{
 				print $outf "$buf";
 			}
-		}		
+		}
+		elsif ($st_bRunning)
+		{
+			sleep(0.9);
+		}
 	}
 
 	exit(0);
@@ -281,7 +290,7 @@ sub ConnectRemote($$)
                                  Blocking => 0
                                 );
 
-	DebugString("Connect $ip:$port $sock");
+	DebugString("Connect $ip:$port <$sock>\n");
 	return $sock;	
 }
 my ($st_Sock);

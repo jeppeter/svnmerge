@@ -1,14 +1,40 @@
 #! perl -w
 use strict;
-use warngings;
+#use warngings;
 use IO::Socket::INET;
 use IO::Select;
 use POSIX;
 use POSIX ":sys_wait_h";
 use Getopt::Std;
 use vars qw ($opt_h);
+use Fcntl;
 
 
+my ($st_bRunning);
+
+
+
+
+sub DebugString($)
+{
+    my($msg)=@_;
+    my($pkg,$fn,$ln,$s)=caller(0);
+
+    {
+        printf STDERR "[%-10s][%-20s][%-5d][INFO]:%s",$fn,$s,$ln,$msg;
+    }
+}
+
+
+sub SigHandleExit
+{
+	my ($sig)=@_;
+	if ("$sig" eq "INT" || 
+		"$sig" eq "TERM" )
+	{
+		$st_bRunning = 0;
+	}
+}
 
 sub Usage
 {
@@ -201,7 +227,7 @@ sub ServerAcceptHandle($)
 	while($st_bRunning)
 	{
 		undef($cpid);
-		@reads = $sel->can_read(10);
+		@reads = $sel->can_read(0.1);
 		if (@reads > 0)
 		{
 			$cpid = AcceptAndFork($sock);
@@ -209,6 +235,11 @@ sub ServerAcceptHandle($)
 			{
 				push(@childs,$cpid);
 			}
+		}
+		elsif ($st_bRunning)
+		{
+			# we should sleep for a while and to get the connect
+			sleep(0.9);
 		}
 
 		HandleChildsWaitOver(\@childs);
@@ -229,10 +260,12 @@ sub BindSocket($)
                                  Reuse => 1,
                                  Blocking => 0
                                 );
+
     return $sock;
 }
 
 my ($sock,$port);
+$st_bRunning = 1;
 getopt("h");
 if (defined($opt_h))
 {
@@ -247,9 +280,15 @@ if (@ARGV < 1)
 $port = shift @ARGV;
 $port = int($port);
 
+$SIG{'INT'}=\&SigHandleExit;
+$SIG{'TERM'}=\&SigHandleExit;
+
 $sock = BindSocket($port);
 if (!defined($sock))
 {
 	die "can not bind $port";
 }
 
+DebugString("listen on $port\n");
+
+ServerAcceptHandle($sock);
