@@ -173,8 +173,8 @@ sub SendRunCmd($@)
 	my ($cmd);
 
 	$cmd = join(' ',QuoteStringArray(@cmds));
-
-	print $sock "$cmd";
+	DebugString("cmd ($cmd)\n");
+	$sock->send($cmd);
 	return 0;
 }
 
@@ -248,6 +248,7 @@ sub ConnectAndHandle($$$@)
 	my ($ret,$l,$cpid);
 	undef($cpid);
 
+	DebugString("send @cmds\n");
 	# now first to send cmd
 	$ret = SendRunCmd($sock,@cmds);
 	if ($ret < 0)
@@ -272,7 +273,7 @@ sub ConnectAndHandle($$$@)
 	while(<$inf>)
 	{
 		my ($l) = $_;
-		print $sock "$l";
+		$sock->send($l);
 	}
 
 	KillChildAndWait($cpid,2);
@@ -308,6 +309,7 @@ if (!defined($st_Sock))
 	die "can not connect to $st_Host:$st_Port";
 }
 
+$st_Sock->autoflush(1);
 ConnectAndHandle(*STDIN,*STDOUT,$st_Sock,@st_Cmds);
 undef($st_Sock);
 

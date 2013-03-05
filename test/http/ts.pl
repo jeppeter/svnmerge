@@ -71,16 +71,47 @@ sub ServerSessionHandle($)
 	# now we should close the socket
 }
 
+sub ReadSockTimeout($$)
+{
+	my ($sock,$timeout)=@_;
+	my ($times,$str,$rstr);
+	my ($sel,@reads);
+	$times = 0;
+	undef($rstr);
+	undef($str);
+	$sel = IO::Select->new();
+	$sel->add($sock);
+	while(($times < $timeout || $timeout == 0)
+		&& $st_bRunning)
+	{
+		@reads = $sel->can_read(1);
+		DebugString("reads (@reads)\n");
+		if (@reads > 0)
+		{
+			DebugString("\n");
+			
+			$sock->recv($str,8192);
+			DebugString("str ($str)\n");
+			$rstr = $str;
+			DebugString("\n");
+			last;
+		}
+		$times ++;
+	}
+
+	return $rstr;
+}
+
 sub ChildHandleSock($)
 {
 	my ($sock)=@_;
 	my ($cmd);
 
-	$cmd = <$sock>;
+	$cmd = ReadSockTimeout($sock,2);
 	if (!defined($cmd) ||
-		length($cmd))
+		length($cmd) <= 0)
 	{
-		DebugString("can not Handle Child read");
+		DebugString("can not Handle Child read(".(defined($cmd) ? "$cmd":"null").")");
 		exit(3);
 	}
 
@@ -116,7 +147,9 @@ sub AcceptAndFork($)
 	{
 		# child 
 		undef($sock);
+		ChildHandleSock($accsock);
 		
+		exit(3);		
 	}
 
 	# now to close the accept socket
