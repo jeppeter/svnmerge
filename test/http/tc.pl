@@ -255,6 +255,7 @@ sub ConnectAndHandle($$$@)
 	{
 		return $ret;
 	}
+	sleep(1);
 
 	# now to fork and give the 
 	$cpid = fork();
