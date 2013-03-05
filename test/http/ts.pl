@@ -10,7 +10,7 @@ use vars qw ($opt_h);
 use Fcntl;
 
 
-my ($st_bRunning);
+my ($st_bRunning)=1;
 
 
 
@@ -265,7 +265,6 @@ sub BindSocket($)
 }
 
 my ($sock,$port);
-$st_bRunning = 1;
 getopt("h");
 if (defined($opt_h))
 {
