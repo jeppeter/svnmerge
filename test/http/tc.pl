@@ -325,7 +325,7 @@ sub ConnectAndHandle($$$@)
 
 	# now we should test for the child exit
 	$times = 0;
-	while($st_bRunning && $times < 10 && $exited == 0)
+	while($st_bRunning && $exited == 0)
 	{
 		$r = TestChildExit($cpid);
 		if ($r == 1)
@@ -340,6 +340,7 @@ sub ConnectAndHandle($$$@)
 
 	if ($times >= 10)
 	{
+		DebugString("times $times\n");
 		$ret = -3;
 	}
 
