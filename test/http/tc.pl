@@ -203,21 +203,56 @@ sub ReadSock($$)
 			{
 				print $outf "$buf";
 			}
+			else
+			{
+				# it read error,so we exit
+				DebugString("\n");
+				last;
+			}
 		}
 		elsif ($st_bRunning)
 		{
 			sleep(0.9);
 		}
 	}
+	undef $sel;
+	undef $sock;
 
 	exit(0);
 	return ;
 }
 
+sub TestChildExit($)
+{
+	my ($pid) = @_;
+	my ($rpid,$err);
+	if (!defined($pid))
+	{
+		return 1;
+	}
+	$rpid = waitpid($pid,WNOHANG);
+	if ($rpid == $pid)
+	{
+		return 1;
+	}
+	else
+	{
+		$err = POSIX::errno();
+		# 10 is for ECHILD 22 for EINVAL
+		if ($err == 10 ||
+		    $err == 22)
+		    {
+		    	return 1;
+		    }
+	}
+	return 0;
+}
+
 sub KillChildAndWait($$)
 {
 	my ($pid,$sig)=@_;
-	my ($rpid,$times);
+	my ($rpid,$times,$r);
+	
 	$times = 0;
 	do
 	{
@@ -230,14 +265,13 @@ sub KillChildAndWait($$)
 			# we kill it rightly
 			kill(9,$pid);
 		}		
-		$rpid = waitpid($pid,WNOHANG);
-		if ($rpid != $pid)
+		$r = TestChildExit($pid);
+		if ($r == 0)
 		{
-			sleep(1);
 			$times ++;
-			
+			sleep(1);
 		}
-	}while($pid!= $rpid);
+	}while($r == 0);
 	return ;
 }
 
@@ -245,8 +279,10 @@ sub KillChildAndWait($$)
 sub ConnectAndHandle($$$@)
 {
 	my ($inf,$outf,$sock,@cmds)=@_;
-	my ($ret,$l,$cpid);
+	my ($ret,$l,$cpid,$times);
+	my ($r,$exited);
 	undef($cpid);
+	
 
 	DebugString("send @cmds\n");
 	# now first to send cmd
@@ -271,14 +307,47 @@ sub ConnectAndHandle($$$@)
 	}
 
 	# this is parent
+	# we assume this is exit
+	$ret = 0;
+	$exited = 0;
 	while(<$inf>)
 	{
 		my ($l) = $_;
 		$sock->send($l);
+		$r = TestChildExit($cpid);
+		if ($r == 1)
+		{
+			# if exited ,so we should give stop
+			$exited = 1;
+			last;
+		}
 	}
 
-	KillChildAndWait($cpid,2);
-	return 0;
+	# now we should test for the child exit
+	$times = 0;
+	while($st_bRunning && $times < 10 && $exited == 0)
+	{
+		$r = TestChildExit($cpid);
+		if ($r == 1)
+		{
+			$exited = 1;
+			last;
+		}
+		$times ++;
+		sleep(1);
+	}
+	# we should exit
+
+	if ($times >= 10)
+	{
+		$ret = -3;
+	}
+
+	if ($exited == 0)
+	{
+		KillChildAndWait($cpid,2);
+	}
+	return $ret;
 }
 
 sub ConnectRemote($$)
